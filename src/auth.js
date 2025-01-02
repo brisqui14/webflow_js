@@ -1,15 +1,12 @@
 // src/auth.js
 
+
 export function initializeSupabase() {
-  if (!window.SUPABASE_CONFIG) {
-    console.error('Supabase configuration not found');
-    return;
+  if (!window.supabase) {
+    console.error('Supabase client not initialized');
+    return false;
   }
-  
-  window.supabase = window.supabase.createClient(
-    window.SUPABASE_CONFIG.url,
-    window.SUPABASE_CONFIG.anonKey
-  );
+  return true;
 }
 
 export async function getUserId() {
