@@ -99,3 +99,9 @@
     console.error('Error retrieving user resumes:', error);
   }
 }
+
+export {
+  uploadResume,
+  deleteResume,
+  retrieveAndDisplayUserResumes
+};

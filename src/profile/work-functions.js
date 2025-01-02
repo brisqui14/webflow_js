@@ -178,34 +178,12 @@ async function saveWorkExperiences(userId) {
 
 
 
-  // Attach event listeners when the DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  populateWorkExperiences();
-
-  // Event delegation for dynamically added elements
-  document.addEventListener('click', async (event) => {
-    // Event handling for adding new work experience
-    if (event.target.id === 'work_add') {
-      event.preventDefault();
-      const workContainer = document.getElementById('work_container');
-      const newWorkId = generateWorkExperienceId();
-      const workTemplate = document.getElementById('work-template');
-      const newWorkItem = workTemplate.content.cloneNode(true);
-      const workItem = newWorkItem.querySelector('.work-item');
-      workItem.dataset.id = newWorkId;
-      workContainer.appendChild(newWorkItem);
-    }
-
-    // Event handling for removing a work experience
-    else if (event.target.classList.contains('remove-instance-btn')) {
-      event.preventDefault();
-      const workItem = event.target.closest('.work-item');
-      if (workItem) {
-        const workItemId = workItem.dataset.id;
-        const userId = await getUserId();
-        await deleteWorkExperience(workItemId);
-        workItem.remove();
-      }
-    }
-  });
-});
+  export {
+    getWorkExperiences,
+    createWorkExperience,
+    updateWorkExperience,
+    deleteWorkExperience,
+    generateWorkExperienceId,
+    populateWorkExperiences,
+    saveWorkExperiences
+  };

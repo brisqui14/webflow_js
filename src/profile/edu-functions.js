@@ -178,36 +178,12 @@
     return Math.floor(dateObj.getTime() / 1000);
   }
 
-
-
-  // Attach event listeners when the DOM is ready
-  document.addEventListener('DOMContentLoaded', () => {
-    populateEducationExperiences();
-
-    // Event delegation for dynamically added elements
-    document.addEventListener('click', async (event) => {
-  // Event handling for adding new education experience
-  if (event.target.id === 'edu_add') {
-    event.preventDefault();
-    const eduContainer = document.getElementById('edu_container');
-    const newEduId = generateEducationExperienceId();
-    const eduTemplate = document.getElementById('edu-template');
-    const newEduItem = eduTemplate.content.cloneNode(true);
-    const eduItem = newEduItem.querySelector('.edu-item');
-    eduItem.dataset.id = newEduId;
-    eduContainer.appendChild(newEduItem);
-  }
-
-  // Event handling for removing an education experience
-  else if (event.target.classList.contains('remove-instance-btn')) {
-    event.preventDefault();
-    const eduItem = event.target.closest('.edu-item');
-    if (eduItem) {
-      const eduItemId = eduItem.dataset.id;
-      const userId = await getUserId();
-      await deleteEducationExperience(eduItemId);
-      eduItem.remove();
-    }
-  }
-});
-});
+  export {
+    getEducationExperiences,
+    createEducationExperience,
+    updateEducationExperience,
+    deleteEducationExperience,
+    generateEducationExperienceId,
+    populateEducationExperiences,
+    saveEducationExperiences
+  };

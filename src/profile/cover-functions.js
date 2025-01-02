@@ -99,3 +99,9 @@ async function retrieveAndDisplayUserCoverLetters(userId) {
     console.error('Error retrieving user cover letters:', error);
   }
 }
+
+export {
+  uploadCoverLetter,
+  deleteCoverLetter,
+  retrieveAndDisplayUserCoverLetters
+};
