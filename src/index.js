@@ -1,5 +1,3 @@
-// src/index.js
-
 // Auth imports
 import { initializeSupabase, getUserId, checkAuthStateAndUpdateUI, handleSignIn } from './auth.js';
 
@@ -36,8 +34,12 @@ import JobBoard from './job-board/job-board.js';
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', async () => {
-  // Initialize Supabase client
-  initializeSupabase();
+  // Initialize Supabase client first
+  const isInitialized = initializeSupabase();
+  if (!isInitialized) {
+    console.error('Supabase client could not be initialized.');
+    return; // Stop execution if Supabase client is not initialized
+  }
 
   // Check authentication state
   await checkAuthStateAndUpdateUI();
@@ -57,9 +59,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         event.preventDefault();
         const email = document.getElementById('email').value;
         const password = document.getElementById('password').value;
-        
+
         const { error } = await handleSignIn(email, password);
-        
+
         if (error) {
           alert('Sign-in failed. Please check your email and password.');
           console.error('Sign-in error:', error);
@@ -149,7 +151,7 @@ async function initializeProfilePage() {
     if (event.target.classList.contains('remove-instance-btn')) {
       event.preventDefault();
       const userId = await getUserId();
-      
+
       // Handle education item removal
       const eduItem = event.target.closest('.edu-item');
       if (eduItem) {
