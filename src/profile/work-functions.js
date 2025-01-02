@@ -1,4 +1,4 @@
-// src/profile/work-functions.js
+// webflow_js/src/profile/work-functions.js
   
 import { getUserId } from '../auth.js';
 import { formatDate, formatDateForSaving } from './utils.js';

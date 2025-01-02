@@ -1,3 +1,5 @@
+// webflow_js/src/index.js
+
 // Auth imports
 import { initializeSupabase, getUserId, checkAuthStateAndUpdateUI, handleSignIn } from './auth.js';
 

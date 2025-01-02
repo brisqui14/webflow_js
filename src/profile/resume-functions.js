@@ -1,4 +1,4 @@
-// src/profile/resume-functions.js
+// webflow_js/src/profile/resume-functions.js
   
 import { getUserId } from '../auth.js';
 

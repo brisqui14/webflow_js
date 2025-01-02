@@ -1,4 +1,4 @@
-// src/profile/utils.js
+// webflow_js/src/profile/utils.js
 export function formatDate(date) {
     if (!date) return '';
 

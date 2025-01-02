@@ -1,4 +1,4 @@
-// src/profile/profile-functions.js
+// webflow_js/src/profile/profile-functions.js
 
 import { getUserId } from '../auth.js';
 import { saveEducationExperiences } from './edu-functions.js';

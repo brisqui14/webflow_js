@@ -1,4 +1,4 @@
-// src/auth.js
+// webflow_js/src/auth.js
 
 
 export function initializeSupabase() {

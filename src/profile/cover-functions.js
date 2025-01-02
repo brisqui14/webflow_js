@@ -1,4 +1,4 @@
-// src/profile/cover-functions.js
+// webflow_js/src/profile/cover-functions.js
 
 import { getUserId } from '../auth.js';
 

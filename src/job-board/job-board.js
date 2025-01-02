@@ -1,4 +1,4 @@
-// src/job-board/job-board.js
+// webflow_js/src/job-board/job-board.js
 
 // JobBoard module
 const JobBoard = {
