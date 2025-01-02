@@ -1,24 +1,24 @@
 // src/index.js
 
 // Auth imports
-import { initializeSupabase, getUserId, checkAuthStateAndUpdateUI } from './auth.js';
+import { initializeSupabase, getUserId, checkAuthStateAndUpdateUI, handleSignIn } from './auth.js';
 
 // Profile page imports
-import { 
-  handleProfileSave, 
-  populateProfileForm 
+import {
+  handleProfileSave,
+  populateProfileForm
 } from './profile/profile-functions.js';
 
-import { 
+import {
   populateWorkExperiences,
   generateWorkExperienceId,
-  deleteWorkExperience 
+  deleteWorkExperience
 } from './profile/work-functions.js';
 
-import { 
+import {
   populateEducationExperiences,
   generateEducationExperienceId,
-  deleteEducationExperience 
+  deleteEducationExperience
 } from './profile/edu-functions.js';
 
 import {
@@ -49,6 +49,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (path.includes('/landing')) {
     // Landing page specific code if needed
   }
+  else if (path.includes('/signupin')) {
+    // Handle sign in/up page
+    const submitButton = document.getElementById('submit_signInUp');
+    if (submitButton) {
+      submitButton.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        const { error } = await handleSignIn(email, password);
+        
+        if (error) {
+          alert('Sign-in failed. Please check your email and password.');
+          console.error('Sign-in error:', error);
+        } else {
+          window.location.href = '/browse';
+        }
+      });
+    }
+  }
   else if (path.includes('/profile')) {
     // Initialize profile page
     await initializeProfilePage();
@@ -57,7 +77,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize job board
     JobBoard.init();
   }
-  // Add other page initializations as needed
 });
 
 // Profile page initialization and event handlers
@@ -148,4 +167,19 @@ async function initializeProfilePage() {
       }
     }
   });
+
+  // Setup auth button handler
+  const authButton = document.getElementById('authButton');
+  if (authButton) {
+    authButton.addEventListener('click', async (event) => {
+      event.preventDefault();
+      const { data: { session } } = await window.supabase.auth.getSession();
+      if (session) {
+        await window.supabase.auth.signOut();
+        window.location.href = '/signupin';
+      } else {
+        window.location.href = '/signupin';
+      }
+    });
+  }
 }
