@@ -1,73 +1,70 @@
 // src/profile/work-functions.js
   
-  // Retrieve the user's work experiences from Supabase
-  async function getWorkExperiences(userId) {
-    const { data, error } = await supabase
-      .from('work_experience')
-      .select('*')
-      .eq('user_id', userId)
-      .order('id', { ascending: true });
+import { getUserId } from '../auth.js';
+import { formatDate, formatDateForSaving } from './utils.js';
 
-    if (error) {
-      console.error('Error retrieving work experiences:', error);
-      return [];
-    }
+export async function getWorkExperiences(userId) {
+  const { data, error } = await window.supabase
+    .from('work_experience')
+    .select('*')
+    .eq('user_id', userId)
+    .order('id', { ascending: true });
 
-    return data;
+  if (error) {
+    console.error('Error retrieving work experiences:', error);
+    return [];
   }
 
-  // Create a new work experience in Supabase
-  async function createWorkExperience(userId, experienceData) {
-    const { data, error } = await supabase
-      .from('work_experience')
-      .insert({ ...experienceData, user_id: userId })
-      .single();
+  return data;
+}
 
-    if (error) {
-      console.error('Error creating work experience:', error);
-      return null;
-    }
+export async function createWorkExperience(userId, experienceData) {
+  const { data, error } = await window.supabase
+    .from('work_experience')
+    .insert({ ...experienceData, user_id: userId })
+    .single();
 
-    return data;
+  if (error) {
+    console.error('Error creating work experience:', error);
+    return null;
   }
 
-  // Update a work experience in Supabase
-  async function updateWorkExperience(experienceId, experienceData) {
-    const { data, error } = await supabase
-      .from('work_experience')
-      .update(experienceData)
-      .eq('id', experienceId);
+  return data;
+}
 
-    if (error) {
-      console.error('Error updating work experience:', error);
-      return false;
-    }
+export async function updateWorkExperience(experienceId, experienceData) {
+  const { data, error } = await window.supabase
+    .from('work_experience')
+    .update(experienceData)
+    .eq('id', experienceId);
 
-    return true;
+  if (error) {
+    console.error('Error updating work experience:', error);
+    return false;
   }
 
-  // Delete a work experience from Supabase
-  async function deleteWorkExperience(experienceId) {
-    const { data, error } = await supabase
-      .from('work_experience')
-      .delete()
-      .eq('id', experienceId);
+  return true;
+}
 
-    if (error) {
-      console.error('Error deleting work experience:', error);
-      return false;
-    }
+export async function deleteWorkExperience(experienceId) {
+  const { data, error } = await window.supabase
+    .from('work_experience')
+    .delete()
+    .eq('id', experienceId);
 
-    return true;
+  if (error) {
+    console.error('Error deleting work experience:', error);
+    return false;
   }
 
-  // Generate a unique ID for new work_experience entries
-  function generateWorkExperienceId() {
-    return 'work_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-  }
+  return true;
+}
 
-  // Populate work experiences
-async function populateWorkExperiences() {
+export function generateWorkExperienceId() {
+  return 'work_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
+
+export async function populateWorkExperiences() {
   try {
     const userId = await getUserId();
 
@@ -102,34 +99,7 @@ async function populateWorkExperiences() {
   }
 }
 
-
-  // Format date as 'MM/DD/YYYY' and return Unix timestamp
-  function formatDate(date) {
-    if (!date) return '';
-
-    let parsedDate;
-
-    try {
-      if (typeof date === 'string' && date.includes('/')) {
-        const [month, day, year] = date.split('/');
-        parsedDate = new Date(year, month - 1, day);
-      } else if (typeof date === 'number') {
-        // Assuming received as Unix seconds from Supabase
-        parsedDate = new Date(date * 1000);
-      } else {
-        return ''; // Default to empty if the format is neither
-      }
-    } catch (error) {
-      console.error('Date Parse Error:', error);
-      return '';
-    }
-
-    const formattedDate = `${parsedDate.getMonth() + 1}/${parsedDate.getDate()}/${parsedDate.getFullYear()}`;
-    return formattedDate;
-  }
-
-// Save work experiences
-async function saveWorkExperiences(userId) {
+export async function saveWorkExperiences(userId) {
   const workItems = document.querySelectorAll('.work-item');
   const workExperiences = [];
 
@@ -168,22 +138,3 @@ async function saveWorkExperiences(userId) {
     }
   }
 }
-  function formatDateForSaving(dateString) {
-    if (!dateString) return null;
-
-    const [month, day, year] = dateString.split('/');
-    const dateObj = new Date(year, month - 1, day);
-    return Math.floor(dateObj.getTime() / 1000);
-  }
-
-
-
-  export {
-    getWorkExperiences,
-    createWorkExperience,
-    updateWorkExperience,
-    deleteWorkExperience,
-    generateWorkExperienceId,
-    populateWorkExperiences,
-    saveWorkExperiences
-  };

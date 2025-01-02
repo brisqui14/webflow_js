@@ -4,7 +4,9 @@ import { initializeSupabase, getUserId, checkAuthStateAndUpdateUI, handleSignIn 
 // Profile page imports
 import {
   handleProfileSave,
-  populateProfileForm
+  populateProfileForm,
+  getUserProfile,
+  updateUserProfile
 } from './profile/profile-functions.js';
 
 import {

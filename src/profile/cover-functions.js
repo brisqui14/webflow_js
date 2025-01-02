@@ -1,6 +1,8 @@
 // src/profile/cover-functions.js
 
-async function uploadCoverLetter(coverLetterFile) {
+import { getUserId } from '../auth.js';
+
+export async function uploadCoverLetter(coverLetterFile) {
   try {
     const { data: { user }, } = await supabase.auth.getUser();
     const userId = user.id;
@@ -26,7 +28,7 @@ async function uploadCoverLetter(coverLetterFile) {
   }
 }
 
-async function deleteCoverLetter(userId, filePath) {
+export async function deleteCoverLetter(userId, filePath) {
   try {
     // Delete the cover letter file from Supabase Storage
     const { error: deleteError } = await supabase.storage
@@ -52,7 +54,7 @@ async function deleteCoverLetter(userId, filePath) {
   }
 }
 
-async function retrieveAndDisplayUserCoverLetters(userId) {
+export async function retrieveAndDisplayUserCoverLetters(userId) {
   try {
     // Retrieve user's cover letters from the user_cover_letters table
     const { data: userCoverLetters, error: coverLettersError } = await supabase
@@ -99,9 +101,3 @@ async function retrieveAndDisplayUserCoverLetters(userId) {
     console.error('Error retrieving user cover letters:', error);
   }
 }
-
-export {
-  uploadCoverLetter,
-  deleteCoverLetter,
-  retrieveAndDisplayUserCoverLetters
-};

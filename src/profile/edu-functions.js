@@ -1,74 +1,67 @@
-  // src/profile/edu-functions.js
-  
-  
-  // Retrieve the user's education experiences from Supabase
-  async function getEducationExperiences(userId) {
-    const { data, error } = await supabase
-      .from('education_experience')
-      .select('*')
-      .eq('user_id', userId)
-      .order('id', { ascending: true });
+// src/profile/edu-functions.js
 
-    if (error) {
-      console.error('Error retrieving education experiences:', error);
-      return [];
-    }
 
-    return data;
+import { getUserId } from '../auth.js';
+import { formatDate, formatDateForSaving } from './utils.js';
+
+export async function getEducationExperiences(userId) {
+  const { data, error } = await window.supabase
+    .from('education_experience')
+    .select('*')
+    .eq('user_id', userId)
+    .order('id', { ascending: true });
+
+  if (error) {
+    console.error('Error retrieving education experiences:', error);
+    return [];
   }
+  return data;
+}
 
-  // Create a new education experience in Supabase
-  async function createEducationExperience(userId, experienceData) {
-    const { data, error } = await supabase
-      .from('education_experience')
-      .insert({ ...experienceData, user_id: userId })
-      .single();
+export async function createEducationExperience(userId, experienceData) {
+  const { data, error } = await window.supabase
+    .from('education_experience')
+    .insert({ ...experienceData, user_id: userId })
+    .single();
 
-    if (error) {
-      console.error('Error creating education experience:', error);
-      return null;
-    }
-
-    return data;
+  if (error) {
+    console.error('Error creating education experience:', error);
+    return null;
   }
+  return data;
+}
 
-  // Update an education experience in Supabase
-  async function updateEducationExperience(experienceId, experienceData) {
-    const { data, error } = await supabase
-      .from('education_experience')
-      .update(experienceData)
-      .eq('id', experienceId);
+export async function updateEducationExperience(experienceId, experienceData) {
+  const { data, error } = await window.supabase
+    .from('education_experience')
+    .update(experienceData)
+    .eq('id', experienceId);
 
-    if (error) {
-      console.error('Error updating education experience:', error);
-      return false;
-    }
-
-    return true;
+  if (error) {
+    console.error('Error updating education experience:', error);
+    return false;
   }
+  return true;
+}
 
-  // Delete an education experience from Supabase
-  async function deleteEducationExperience(experienceId) {
-    const { data, error } = await supabase
-      .from('education_experience')
-      .delete()
-      .eq('id', experienceId);
+export async function deleteEducationExperience(experienceId) {
+  const { data, error } = await window.supabase
+    .from('education_experience')
+    .delete()
+    .eq('id', experienceId);
 
-    if (error) {
-      console.error('Error deleting education experience:', error);
-      return false;
-    }
-
-    return true;
+  if (error) {
+    console.error('Error deleting education experience:', error);
+    return false;
   }
+  return true;
+}
 
-  // Generate a unique ID for new education_experience entries
-  function generateEducationExperienceId() {
-    return 'edu_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-  }
+export function generateEducationExperienceId() {
+  return 'edu_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+}
 
-  // Populate education experiences
-  async function populateEducationExperiences() {
+export async function populateEducationExperiences() {
   try {
     const userId = await getUserId();
 
@@ -104,32 +97,7 @@
   }
 }
 
-  // Format date as 'MM/DD/YYYY' and return Unix timestamp
-  function formatDate(date) {
-    if (!date) return '';
-
-    let parsedDate;
-
-    try {
-      if (typeof date === 'string' && date.includes('/')) {
-        const [month, day, year] = date.split('/');
-        parsedDate = new Date(year, month - 1, day);
-      } else if (typeof date === 'number') {
-        // Assuming received as Unix seconds from Supabase
-        parsedDate = new Date(date * 1000);
-      } else {
-        return ''; // Default to empty if the format is neither
-      }
-    } catch (error) {
-      console.error('Date Parse Error:', error);
-      return '';
-    }
-
-    const formattedDate = `${parsedDate.getMonth() + 1}/${parsedDate.getDate()}/${parsedDate.getFullYear()}`;
-    return formattedDate;
-  }
-
-  async function saveEducationExperiences(userId) {
+export async function saveEducationExperiences(userId) {
   const eduItems = document.querySelectorAll('.edu-item');
   const educationExperiences = [];
 
@@ -169,21 +137,3 @@
     }
   }
 }
-
-  function formatDateForSaving(dateString) {
-    if (!dateString) return null;
-
-    const [month, day, year] = dateString.split('/');
-    const dateObj = new Date(year, month - 1, day);
-    return Math.floor(dateObj.getTime() / 1000);
-  }
-
-  export {
-    getEducationExperiences,
-    createEducationExperience,
-    updateEducationExperience,
-    deleteEducationExperience,
-    generateEducationExperienceId,
-    populateEducationExperiences,
-    saveEducationExperiences
-  };

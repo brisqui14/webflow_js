@@ -1,6 +1,9 @@
 // src/profile/resume-functions.js
   
-  async function uploadResume(resumeFile) {
+import { getUserId } from '../auth.js';
+
+
+  export async function uploadResume(resumeFile) {
   try {
     const { data: { user }, } = await supabase.auth.getUser();
     const userId = user.id;
@@ -26,7 +29,7 @@
   }
 }
 
-  async function deleteResume(userId, filePath) {
+export async function deleteResume(userId, filePath) {
     try {
       // Delete the resume file from Supabase Storage
       const { error: deleteError } = await supabase.storage
@@ -52,7 +55,7 @@
     }
   }
 
-  async function retrieveAndDisplayUserResumes(userId) {
+  export async function retrieveAndDisplayUserResumes(userId) {
   try {
     // Retrieve user's resumes from the user_resumes table
     const { data: userResumes, error: resumesError } = await supabase
@@ -99,9 +102,3 @@
     console.error('Error retrieving user resumes:', error);
   }
 }
-
-export {
-  uploadResume,
-  deleteResume,
-  retrieveAndDisplayUserResumes
-};
