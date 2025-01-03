@@ -42,57 +42,54 @@ const JobBoard = {
       )
   `,
 
-  async fetchJobs() {
-    if (this.state.isLoading || !this.state.hasMore) return;
-  
-    this.state.isLoading = true;
-  
-    try {
-      let { data, error, count } = await supabase
-        .from('production_jobs')
-        .select(this.PREVIEW_FIELDS, { count: 'exact' })
-        .range(
-          (this.state.currentPage - 1) * this.PAGE_SIZE,
-          this.state.currentPage * this.PAGE_SIZE - 1
-        )
-        .order('created_at', { ascending: false });
-  
-      if (error) throw error;
-  
-      // Filter out duplicates so we only get one job per company_id
-      const seenCompanyIds = new Set();
-      const uniqueJobs = [];
-      for (const job of data) {
-        if (!seenCompanyIds.has(job.company_id)) {
-          uniqueJobs.push(job);
-          seenCompanyIds.add(job.company_id);
-        }
+  // Temporarily override PAGE_SIZE for variety
+PAGE_SIZE: 200,
+
+async fetchJobs() {
+  if (this.state.isLoading || !this.state.hasMore) return;
+  this.state.isLoading = true;
+
+  try {
+    const { data, error } = await supabase
+      .from('production_jobs')
+      // We fetch 200 at once temporarily
+      .select(this.PREVIEW_FIELDS)
+      .range(0, 199) 
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Filter out duplicates so we only get one job per company_id
+    const seen = new Set();
+    const uniqueJobs = [];
+    for (const job of data) {
+      if (!seen.has(job.company_id)) {
+        uniqueJobs.push(job);
+        seen.add(job.company_id);
       }
-  
-      // Now `uniqueJobs` has only one job per company
-      const jobsContainer = document.querySelector('#job-listings-container');
-  
-      // Remove template if it's the first load
-      if (this.state.currentPage === 1) {
-        const template = jobsContainer.querySelector('.job-listing');
-        if (template) {
-          template.style.display = 'none';
-        }
-      }
-  
-      uniqueJobs.forEach(job => {
-        const jobElement = this.createJobElement(job);
-        jobsContainer.appendChild(jobElement);
-      });
-  
-      this.state.hasMore = data.length === this.PAGE_SIZE;
-      this.state.currentPage++;
-    } catch (error) {
-      console.error('Error loading jobs:', error);
-    } finally {
-      this.state.isLoading = false;
     }
-  },
+
+    // Render
+    const jobsContainer = document.querySelector('#job-listings-container');
+    const template = jobsContainer.querySelector('.job-listing');
+    if (template) {
+      template.style.display = 'none';
+    }
+
+    uniqueJobs.forEach(job => {
+      const jobElement = this.createJobElement(job);
+      jobsContainer.appendChild(jobElement);
+    });
+
+    // Because we only fetched once, let's just say .hasMore = false
+    this.state.hasMore = false;
+
+  } catch (err) {
+    console.error('Error loading jobs:', err);
+  } finally {
+    this.state.isLoading = false;
+  }
+},
 
   async showJobDetails(jobId) {
       const detailContainer = document.getElementById('job-detail-container');
