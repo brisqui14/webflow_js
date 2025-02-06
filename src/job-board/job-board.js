@@ -251,22 +251,32 @@ const JobBoard = {
                class="company-logo">` : ''
             }
             <div class="company-info">
-              <h3>${job.production_companies?.name || ''}</h3>
-              <p class="company-details">
-                ${[
-                  job.department,
-                  job.team,
-                  locationAddress
-                ].filter(Boolean).join('; ')}
-              </p>
+              <h3 class="company-name">${job.production_companies?.name || ''}</h3>
+              <div class="company-details">
+                ${job.department ? 
+                  `<p class="detail-item">
+                    <span class="detail-label">Department: </span>${job.department}
+                   </p>` : ''
+                }
+                ${job.team ? 
+                  `<p class="detail-item">
+                    <span class="detail-label">Team: </span>${job.team}
+                   </p>` : ''
+                }
+                ${locationAddress !== 'Location not specified' ? 
+                  `<p class="detail-item">${locationAddress}</p>` : ''
+                }
+              </div>
             </div>
             ${job.job_url ? 
-              `<a href="${job.job_url}" 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  class="apply-button">
-                Apply Now
-              </a>` : ''
+              `<div class="company-header-right">
+                <a href="${job.job_url}" 
+                    target="_blank" 
+                    rel="noopener noreferrer" 
+                    class="apply-button">
+                  Apply Now
+                </a>
+               </div>` : ''
             }
           </div>
           <div class="job-tags">
