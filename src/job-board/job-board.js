@@ -1,4 +1,3 @@
-// JobBoard module
 const JobBoard = {
     // State management
     state: {
@@ -12,33 +11,6 @@ const JobBoard = {
         workTypes: []
       }
     },
- 
-    // Constants
-    PREVIEW_FIELDS: `
-      job_id,
-      company_id,
-      title,
-      job_url,
-      department,
-      team,
-      processed_locations,
-      processed_location_types,
-      processed_work_types,
-      processed_keywords,
-      processed_comp,
-      structured_locations!processed_locations(
-        place_id,
-        formatted_address
-      ),
-      production_companies (
-        company_id,
-        name,
-        company_url,
-        logo_url
-      )
-    `,
- 
-    PAGE_SIZE: 200,
 
     updateResultsCount() {
       const resultsCounter = document.getElementById('results-counter');
@@ -47,7 +19,6 @@ const JobBoard = {
       }
     },
  
-    // Add filter handling
     setupFilters() {
       // Location Type checkboxes
       const locationTypeIds = ['wtoscb', 'wtrecb', 'wthycb', 'wtnscb'];
@@ -100,7 +71,6 @@ const JobBoard = {
           this.refreshJobs();
         });
  
-        // Also trigger search on enter key
         searchInput.addEventListener('keypress', (e) => {
           if (e.key === 'Enter') {
             this.state.filters.title = searchInput.value;
@@ -115,21 +85,10 @@ const JobBoard = {
       this.state.isLoading = true;
  
       try {
-        // First fetch jobs data
-        const { data, error } = await window.supabase
+        const { data: jobsData, error: jobsError } = await window.supabase
           .from('production_jobs')
           .select(`
-            job_id,
-            company_id,
-            title,
-            job_url,
-            department,
-            team,
-            processed_locations,
-            processed_location_types,
-            processed_work_types,
-            processed_keywords,
-            processed_comp,
+            *,
             production_companies (
               company_id,
               name,
@@ -139,10 +98,10 @@ const JobBoard = {
           `)
           .order('created_at', { ascending: false });
  
-        if (error) throw error;
- 
+        if (jobsError) throw jobsError;
+
         // Apply filters
-        let filteredData = data;
+        let filteredData = jobsData;
         
         if (this.state.filters.title) {
           filteredData = filteredData.filter(job => 
@@ -208,8 +167,53 @@ const JobBoard = {
         this.state.isLoading = false;
       }
     },
- 
-    async showJobDetails(jobId) {
+
+    async createJobElement(job) {
+      // Create new job listing element
+      const element = document.createElement('div');
+      element.className = 'job-listing';
+      element.innerHTML = `
+        <h3 class="job-title"></h3>
+        <p class="job-company-location">
+          <span class="job-company"></span> - <span class="job-location"></span>
+        </p>
+      `;
+      
+      // Set job details
+      element.querySelector('.job-title').textContent = job.title;
+      element.querySelector('.job-company').textContent = job.production_companies?.name || '';
+      
+      // Get formatted address
+      const locationSpan = element.querySelector('.job-location');
+      locationSpan.textContent = 'Loading location...';
+      
+      try {
+        if (job.processed_locations && job.processed_locations.length > 0) {
+          const { data: locations } = await window.supabase
+            .from('structured_locations')
+            .select('formatted_address')
+            .in('place_id', job.processed_locations)
+            .limit(1);
+
+          locationSpan.textContent = locations?.[0]?.formatted_address || 'Location not specified';
+        } else {
+          locationSpan.textContent = 'Location not specified';
+        }
+      } catch (err) {
+        console.error('Error fetching location:', err);
+        locationSpan.textContent = 'Location not specified';
+      }
+      
+      // Make the entire job listing clickable
+      element.style.cursor = 'pointer';
+      element.addEventListener('click', () => {
+        this.showJobDetails(job);
+      });
+
+      return element;
+    },
+
+    async showJobDetails(job) {
       const detailContainer = document.getElementById('job-detail-container');
       const titleElement = detailContainer.querySelector('.job-detail-title');
       const contentElement = detailContainer.querySelector('.job-detail-content');
@@ -221,53 +225,43 @@ const JobBoard = {
       document.querySelector('.job-board-container').classList.add('show-detail');
  
       try {
-        // Fetch job details including description
-        const { data: jobData, error: jobError } = await window.supabase
-          .from('production_jobs')
-          .select(`
-            *,
-            production_companies (
-              name,
-              logo_url
-            )
-          `)
-          .eq('job_id', jobId)
-          .single();
- 
-        if (jobError) throw jobError;
-
-        // Fetch location data if available
+        // Get location data
         let locationAddress = 'Location not specified';
-        if (jobData.processed_locations && jobData.processed_locations.length > 0) {
-          const locations = await this.getFormattedAddresses(jobData.processed_locations);
-          if (locations.length > 0) {
+        if (job.processed_locations && job.processed_locations.length > 0) {
+          const { data: locations } = await window.supabase
+            .from('structured_locations')
+            .select('formatted_address')
+            .in('place_id', job.processed_locations)
+            .limit(1);
+
+          if (locations && locations.length > 0) {
             locationAddress = locations[0].formatted_address;
           }
         }
  
         // Update content
-        titleElement.textContent = jobData.title;
+        titleElement.textContent = job.title;
        
         // Create content HTML
         const contentHTML = `
           <div class="job-company-header">
-            ${jobData.production_companies?.logo_url ?
-              `<img src="${jobData.production_companies.logo_url}"
-               alt="${jobData.production_companies.name}"
+            ${job.production_companies?.logo_url ?
+              `<img src="${job.production_companies.logo_url}"
+               alt="${job.production_companies.name}"
                class="company-logo">` : ''
             }
             <div class="company-info">
-              <h3>${jobData.production_companies?.name || ''}</h3>
+              <h3>${job.production_companies?.name || ''}</h3>
               <p class="company-details">
                 ${[
-                  jobData.department,
-                  jobData.team,
+                  job.department,
+                  job.team,
                   locationAddress
                 ].filter(Boolean).join('; ')}
               </p>
             </div>
-            ${jobData.job_url ? 
-              `<a href="${jobData.job_url}" 
+            ${job.job_url ? 
+              `<a href="${job.job_url}" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   class="apply-button">
@@ -276,72 +270,29 @@ const JobBoard = {
             }
           </div>
           <div class="job-tags">
-            ${(jobData.processed_work_types || [])
+            ${(job.processed_work_types || [])
               .map(type => `<span class="job-tag">${type}</span>`)
               .join('')
             }
           </div>
           <div class="job-description">
-            ${jobData.description || ''}
+            ${job.description || ''}
           </div>
         `;
        
         contentElement.innerHTML = contentHTML;
  
       } catch (error) {
+        console.error('Error loading job details:', error);
         contentElement.innerHTML = `<div class="error-message">
           Error loading job details: ${error.message}
         </div>`;
       }
     },
  
-    createJobElement(job) {
-      const template = document.querySelector('.job-listing');
-      
-      if (!template) {
-        console.error('Job listing template not found');
-        // Create a new element from scratch if template doesn't exist
-        const element = document.createElement('div');
-        element.className = 'job-listing';
-        element.innerHTML = `
-          <h3 class="job-title"></h3>
-          <p class="job-company-location">
-            <span class="job-company"></span> - <span class="job-location"></span>
-          </p>
-        `;
-        return this.populateJobElement(element, job);
-      }
-
-      const element = template.cloneNode(true);
-      return this.populateJobElement(element, job);
-    },
-
-    populateJobElement(element, job) {
-      // Remove any template-specific attributes
-      element.removeAttribute('style');
-      
-      // Set job details
-      element.querySelector('.job-title').textContent = job.title;
-      element.querySelector('.job-company').textContent = job.production_companies?.name || '';
-      
-      // Get formatted address from structured_locations
-      const locationAddress = job.structured_locations?.[0]?.formatted_address || 'Location not specified';
-      element.querySelector('.job-location').textContent = locationAddress;
-      
-      // Make the entire job listing clickable
-      element.style.cursor = 'pointer';
-      element.addEventListener('click', () => {
-        this.showJobDetails(job.job_id);
-      });
-
-      return element;
-    },
- 
-    // Add method to refresh jobs when filters change
     refreshJobs() {
       const jobsContainer = document.querySelector('#job-listings-container');
       if (jobsContainer) {
-        // Reset container and fetch with new filters
         this.state.hasMore = true;
         this.fetchJobs();
       }
@@ -362,7 +313,6 @@ const JobBoard = {
         });
       }, options);
  
-      // Create and observe sentinel element
       const sentinel = document.createElement('div');
       sentinel.id = 'infinite-scroll-sentinel';
       document.querySelector('#job-listings-container').appendChild(sentinel);
@@ -370,7 +320,6 @@ const JobBoard = {
     },
  
     init() {
-      // Ensure DOM is loaded before initialization
       const jobsContainer = document.querySelector('#job-listings-container');
       if (!jobsContainer) {
         console.error('Job listings container not found');
@@ -382,20 +331,6 @@ const JobBoard = {
       resultsCounter.id = 'results-counter';
       resultsCounter.className = 'results-counter';
       jobsContainer.insertBefore(resultsCounter, jobsContainer.firstChild);
-
-      // Initialize the template if it doesn't exist
-      if (!document.querySelector('.job-listing')) {
-        const template = document.createElement('div');
-        template.className = 'job-listing';
-        template.style.display = 'none';
-        template.innerHTML = `
-          <h3 class="job-title"></h3>
-          <p class="job-company-location">
-            <span class="job-company"></span> - <span class="job-location"></span>
-          </p>
-        `;
-        jobsContainer.appendChild(template);
-      }
 
       this.setupFilters();
       this.fetchJobs();
@@ -412,7 +347,6 @@ const JobBoard = {
         });
       }
     }
-  };
+};
  
-  
-  export default JobBoard;
+export default JobBoard;
