@@ -193,14 +193,10 @@ const JobBoard = {
  
       try {
         // Fetch job details including description
-        const { data, error } = await window.supabase
+        const { data: jobData, error: jobError } = await window.supabase
           .from('production_jobs')
           .select(`
             *,
-            structured_locations!processed_locations(
-              place_id,
-              formatted_address
-            ),
             production_companies (
               name,
               logo_url
@@ -209,31 +205,40 @@ const JobBoard = {
           .eq('job_id', jobId)
           .single();
  
-        if (error) throw error;
+        if (jobError) throw jobError;
+
+        // Fetch location data if available
+        let locationAddress = 'Location not specified';
+        if (jobData.processed_locations && jobData.processed_locations.length > 0) {
+          const locations = await this.getFormattedAddresses(jobData.processed_locations);
+          if (locations.length > 0) {
+            locationAddress = locations[0].formatted_address;
+          }
+        }
  
         // Update content
-        titleElement.textContent = data.title;
+        titleElement.textContent = jobData.title;
        
         // Create content HTML
         const contentHTML = `
           <div class="job-company-header">
-            ${data.production_companies?.logo_url ?
-              `<img src="${data.production_companies.logo_url}"
-               alt="${data.production_companies.name}"
+            ${jobData.production_companies?.logo_url ?
+              `<img src="${jobData.production_companies.logo_url}"
+               alt="${jobData.production_companies.name}"
                class="company-logo">` : ''
             }
             <div class="company-info">
-              <h3>${data.production_companies?.name || ''}</h3>
+              <h3>${jobData.production_companies?.name || ''}</h3>
               <p class="company-details">
                 ${[
-                  data.department,
-                  data.team,
-                  data.structured_locations?.[0]?.formatted_address
+                  jobData.department,
+                  jobData.team,
+                  locationAddress
                 ].filter(Boolean).join('; ')}
               </p>
             </div>
-            ${data.job_url ? 
-              `<a href="${data.job_url}" 
+            ${jobData.job_url ? 
+              `<a href="${jobData.job_url}" 
                   target="_blank" 
                   rel="noopener noreferrer" 
                   class="apply-button">
@@ -242,13 +247,13 @@ const JobBoard = {
             }
           </div>
           <div class="job-tags">
-            ${(data.processed_work_types || [])
+            ${(jobData.processed_work_types || [])
               .map(type => `<span class="job-tag">${type}</span>`)
               .join('')
             }
           </div>
           <div class="job-description">
-            ${data.description || ''}
+            ${jobData.description || ''}
           </div>
         `;
        
