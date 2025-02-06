@@ -115,32 +115,61 @@ const JobBoard = {
       this.state.isLoading = true;
  
       try {
-        let query = supabase
+        // First fetch jobs data
+        const { data, error } = await window.supabase
           .from('production_jobs')
-          .select(this.PREVIEW_FIELDS)
+          .select(`
+            job_id,
+            company_id,
+            title,
+            job_url,
+            department,
+            team,
+            processed_locations,
+            processed_location_types,
+            processed_work_types,
+            processed_keywords,
+            processed_comp,
+            production_companies (
+              company_id,
+              name,
+              company_url,
+              logo_url
+            )
+          `)
           .order('created_at', { ascending: false });
  
+        if (error) throw error;
+ 
         // Apply filters
+        let filteredData = data;
+        
         if (this.state.filters.title) {
-          query = query.ilike('title', `%${this.state.filters.title}%`);
+          filteredData = filteredData.filter(job => 
+            job.title.toLowerCase().includes(this.state.filters.title.toLowerCase())
+          );
         }
  
         if (this.state.filters.locationTypes.length > 0) {
-          query = query.overlaps('processed_location_types', this.state.filters.locationTypes);
+          filteredData = filteredData.filter(job =>
+            job.processed_location_types?.some(type => 
+              this.state.filters.locationTypes.includes(type)
+            )
+          );
         }
  
         if (this.state.filters.workTypes.length > 0) {
-          query = query.overlaps('processed_work_types', this.state.filters.workTypes);
+          filteredData = filteredData.filter(job =>
+            job.processed_work_types?.some(type => 
+              this.state.filters.workTypes.includes(type)
+            )
+          );
         }
- 
-        const { data, error } = await query.range(0, 199);
- 
-        if (error) throw error;
  
         // Filter out duplicates
         const seen = new Set();
         const uniqueJobs = [];
-        for (const job of data) {
+        for (const job of filteredData) {
           if (!seen.has(job.company_id)) {
             uniqueJobs.push(job);
             seen.add(job.company_id);
@@ -164,10 +193,10 @@ const JobBoard = {
         }
  
         // Render new jobs
-        uniqueJobs.forEach(job => {
-          const jobElement = this.createJobElement(job);
+        for (const job of uniqueJobs) {
+          const jobElement = await this.createJobElement(job);
           jobsContainer.appendChild(jobElement);
-        });
+        }
  
         this.state.hasMore = false;
  
