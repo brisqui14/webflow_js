@@ -222,92 +222,129 @@ const JobBoard = {
       },
       
 
-    async showJobDetails(job) {
-      const detailContainer = document.getElementById('job-detail-container');
-      const titleElement = detailContainer.querySelector('.job-detail-title');
-      const contentElement = detailContainer.querySelector('.job-detail-content');
-     
-      // Show loading state
-      titleElement.textContent = 'Loading...';
-      contentElement.innerHTML = '<div class="loading-spinner"></div>';
-      detailContainer.classList.add('job-detail-visible');
-      document.querySelector('.job-board-container').classList.add('show-detail');
- 
-      try {
-        // Get location data
-        let locationAddress = 'Location not specified';
-        if (job.processed_locations && job.processed_locations.length > 0) {
-          const { data: locations } = await window.supabase
-            .from('structured_locations')
-            .select('formatted_address')
-            .in('place_id', job.processed_locations)
-            .limit(1);
-
-          if (locations && locations.length > 0) {
-            locationAddress = locations[0].formatted_address;
+      async showJobDetails(job) {
+        const detailContainer = document.getElementById('job-detail-container');
+        const titleElement = detailContainer.querySelector('.job-detail-title');
+        const contentElement = detailContainer.querySelector('.job-detail-content');
+      
+        // Show loading state
+        titleElement.textContent = 'Loading...';
+        contentElement.innerHTML = '<div class="loading-spinner"></div>';
+        detailContainer.classList.add('job-detail-visible');
+        document.querySelector('.job-board-container').classList.add('show-detail');
+      
+        try {
+          // ---- 1. Get location data as before ----
+          let locationAddress = 'Location not specified';
+          if (job.processed_locations && job.processed_locations.length > 0) {
+            const { data: locations } = await window.supabase
+              .from('structured_locations')
+              .select('formatted_address')
+              .in('place_id', job.processed_locations)
+              .limit(1);
+      
+            if (locations && locations.length > 0) {
+              locationAddress = locations[0].formatted_address;
+            }
           }
-        }
- 
-        // Update content
-        titleElement.textContent = job.title;
-       
-        // Create content HTML
-        const contentHTML = `
-          <div class="job-company-header">
-            ${job.production_companies?.logo_url ?
-              `<img src="${job.production_companies.logo_url}"
-               alt="${job.production_companies.name}"
-               class="company-logo">` : ''
+      
+          // ---- 2. Build a snippet for compensation if present ----
+          // job.processed_comp is JSONB, example:
+          // { "frequency": "yearly", "min_value": 185000, "max_value": 205000 }
+          let compensationHTML = '';
+          if (job.processed_comp) {
+            const { frequency, min_value, max_value } = job.processed_comp;
+      
+            // Ensure the key data is present
+            if (frequency && min_value && max_value) {
+              // Optional: nice numeric formatting
+              const formatter = new Intl.NumberFormat('en-US');
+              const minFormatted = formatter.format(min_value);
+              const maxFormatted = formatter.format(max_value);
+      
+              // Decide how to label frequency
+              const freqLabel = frequency === 'yearly' ? '/year' : '/hour';
+      
+              compensationHTML = `
+                <p class="detail-item">
+                  <span class="detail-label">Compensation: </span>
+                  $${minFormatted} - $${maxFormatted} ${freqLabel}
+                </p>
+              `;
             }
-            <div class="company-info">
-              <h3 class="company-name">${job.production_companies?.name || ''}</h3>
-              <div class="company-details">
-                ${job.department ? 
-                  `<p class="detail-item">
-                    <span class="detail-label">Department: </span>${job.department}
-                   </p>` : ''
-                }
-                ${job.team ? 
-                  `<p class="detail-item">
-                    <span class="detail-label">Team: </span>${job.team}
-                   </p>` : ''
-                }
-                ${locationAddress !== 'Location not specified' ? 
-                  `<p class="detail-item">${locationAddress}</p>` : ''
-                }
+          }
+      
+          // ---- 3. Build your main content HTML ----
+          titleElement.textContent = job.title;
+      
+          const contentHTML = `
+            <div class="job-company-header">
+              ${
+                job.production_companies?.logo_url
+                  ? `<img src="${job.production_companies.logo_url}"
+                           alt="${job.production_companies.name}"
+                           class="company-logo">`
+                  : ''
+              }
+              <div class="company-info">
+                <h3 class="company-name">${job.production_companies?.name || ''}</h3>
+                <div class="company-details">
+                  ${
+                    job.department
+                      ? `<p class="detail-item">
+                           <span class="detail-label">Department: </span>${job.department}
+                         </p>`
+                      : ''
+                  }
+                  ${
+                    job.team
+                      ? `<p class="detail-item">
+                           <span class="detail-label">Team: </span>${job.team}
+                         </p>`
+                      : ''
+                  }
+                  ${
+                    locationAddress !== 'Location not specified'
+                      ? `<p class="detail-item">${locationAddress}</p>`
+                      : ''
+                  }
+                  <!-- Insert compensation (if any) -->
+                  ${compensationHTML}
+                </div>
               </div>
+              ${
+                job.job_url
+                  ? `<div class="company-header-right">
+                      <a href="${job.job_url}"
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         class="apply-button">
+                        Apply Now
+                      </a>
+                     </div>`
+                  : ''
+              }
             </div>
-            ${job.job_url ? 
-              `<div class="company-header-right">
-                <a href="${job.job_url}" 
-                    target="_blank" 
-                    rel="noopener noreferrer" 
-                    class="apply-button">
-                  Apply Now
-                </a>
-               </div>` : ''
-            }
-          </div>
-          <div class="job-tags">
-            ${(job.processed_work_types || [])
-              .map(type => `<span class="job-tag">${type}</span>`)
-              .join('')
-            }
-          </div>
-          <div class="job-description">
-            ${job.description || ''}
-          </div>
-        `;
-       
-        contentElement.innerHTML = contentHTML;
- 
-      } catch (error) {
-        console.error('Error loading job details:', error);
-        contentElement.innerHTML = `<div class="error-message">
-          Error loading job details: ${error.message}
-        </div>`;
-      }
-    },
+            <div class="job-tags">
+              ${
+                (job.processed_work_types || [])
+                  .map(type => `<span class="job-tag">${type}</span>`)
+                  .join('')
+              }
+            </div>
+            <div class="job-description">
+              ${job.description || ''}
+            </div>
+          `;
+      
+          contentElement.innerHTML = contentHTML;
+        } catch (error) {
+          console.error('Error loading job details:', error);
+          contentElement.innerHTML = `<div class="error-message">
+            Error loading job details: ${error.message}
+          </div>`;
+        }
+      },
  
     refreshJobs() {
       const jobsContainer = document.querySelector('#job-listings-container');
