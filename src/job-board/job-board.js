@@ -241,22 +241,40 @@ const JobBoard = {
  
     createJobElement(job) {
       const template = document.querySelector('.job-listing');
+      
+      if (!template) {
+        console.error('Job listing template not found');
+        // Create a new element from scratch if template doesn't exist
+        const element = document.createElement('div');
+        element.className = 'job-listing';
+        element.innerHTML = `
+          <h3 class="job-title"></h3>
+          <p class="job-company-location">
+            <span class="job-company"></span> - <span class="job-location"></span>
+          </p>
+        `;
+        return this.populateJobElement(element, job);
+      }
+
       const element = template.cloneNode(true);
-     
-      // Remove any template-specific classes/attributes
+      return this.populateJobElement(element, job);
+    },
+
+    populateJobElement(element, job) {
+      // Remove any template-specific attributes
       element.removeAttribute('style');
-     
+      
       // Set job details
       element.querySelector('.job-title').textContent = job.title;
       element.querySelector('.job-company').textContent = job.production_companies?.name || '';
       element.querySelector('.job-location').textContent = job.processed_locations?.[0] || '';
-     
+      
       // Make the entire job listing clickable
       element.style.cursor = 'pointer';
       element.addEventListener('click', () => {
         this.showJobDetails(job.job_id);
       });
- 
+
       return element;
     },
  
@@ -293,12 +311,32 @@ const JobBoard = {
     },
  
     init() {
+      // Ensure DOM is loaded before initialization
+      const jobsContainer = document.querySelector('#job-listings-container');
+      if (!jobsContainer) {
+        console.error('Job listings container not found');
+        return;
+      }
+
       // Add results counter to the DOM
       const resultsCounter = document.createElement('div');
       resultsCounter.id = 'results-counter';
       resultsCounter.className = 'results-counter';
-      const jobsContainer = document.querySelector('#job-listings-container');
       jobsContainer.insertBefore(resultsCounter, jobsContainer.firstChild);
+
+      // Initialize the template if it doesn't exist
+      if (!document.querySelector('.job-listing')) {
+        const template = document.createElement('div');
+        template.className = 'job-listing';
+        template.style.display = 'none';
+        template.innerHTML = `
+          <h3 class="job-title"></h3>
+          <p class="job-company-location">
+            <span class="job-company"></span> - <span class="job-location"></span>
+          </p>
+        `;
+        jobsContainer.appendChild(template);
+      }
 
       this.setupFilters();
       this.fetchJobs();
