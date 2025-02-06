@@ -169,49 +169,58 @@ const JobBoard = {
     },
 
     async createJobElement(job) {
-      // Create new job listing element
-      const element = document.createElement('div');
-      element.className = 'job-listing';
-      element.innerHTML = `
-        <h3 class="job-title"></h3>
-        <p class="job-company-location">
-          <span class="job-company"></span> - <span class="job-location"></span>
-        </p>
-      `;
+        // Create new job listing element
+        const element = document.createElement('div');
+        element.className = 'job-listing';
+        element.innerHTML = `
+          <h3 class="job-title"></h3>
+          <p class="job-company-location">
+            <span class="job-company"></span> - <span class="job-location"></span>
+          </p>
+        `;
+        
+        // Set job details
+        element.querySelector('.job-title').textContent = job.title;
+        element.querySelector('.job-company').textContent = job.production_companies?.name || '';
       
-      // Set job details
-      element.querySelector('.job-title').textContent = job.title;
-      element.querySelector('.job-company').textContent = job.production_companies?.name || '';
+        // Fetch and display location
+        const locationSpan = element.querySelector('.job-location');
+        locationSpan.textContent = 'Loading location...';
       
-      // Get formatted address
-      const locationSpan = element.querySelector('.job-location');
-      locationSpan.textContent = 'Loading location...';
+        try {
+          if (job.processed_locations && job.processed_locations.length > 0) {
+            const { data: locations } = await window.supabase
+              .from('structured_locations')
+              .select('formatted_address')
+              .in('place_id', job.processed_locations)
+              .limit(1);
       
-      try {
-        if (job.processed_locations && job.processed_locations.length > 0) {
-          const { data: locations } = await window.supabase
-            .from('structured_locations')
-            .select('formatted_address')
-            .in('place_id', job.processed_locations)
-            .limit(1);
-
-          locationSpan.textContent = locations?.[0]?.formatted_address || 'Location not specified';
-        } else {
+            locationSpan.textContent = locations?.[0]?.formatted_address || 'Location not specified';
+          } else {
+            locationSpan.textContent = 'Location not specified';
+          }
+        } catch (err) {
+          console.error('Error fetching location:', err);
           locationSpan.textContent = 'Location not specified';
         }
-      } catch (err) {
-        console.error('Error fetching location:', err);
-        locationSpan.textContent = 'Location not specified';
-      }
       
-      // Make the entire job listing clickable
-      element.style.cursor = 'pointer';
-      element.addEventListener('click', () => {
-        this.showJobDetails(job);
-      });
-
-      return element;
-    },
+        // Make the entire job listing clickable
+        element.style.cursor = 'pointer';
+        element.addEventListener('click', () => {
+          // 1. Remove the 'selected' class from any previously selected job listings
+          document.querySelectorAll('.job-listing.selected').forEach(el => {
+            el.classList.remove('selected');
+          });
+          // 2. Add the 'selected' class to the clicked one
+          element.classList.add('selected');
+      
+          // 3. Show the job details
+          this.showJobDetails(job);
+        });
+      
+        return element;
+      },
+      
 
     async showJobDetails(job) {
       const detailContainer = document.getElementById('job-detail-container');
