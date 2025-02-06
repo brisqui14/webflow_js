@@ -26,6 +26,10 @@ const JobBoard = {
       processed_work_types,
       processed_keywords,
       processed_comp,
+      structured_locations!processed_locations(
+        place_id,
+        formatted_address
+      ),
       production_companies (
         company_id,
         name,
@@ -193,6 +197,10 @@ const JobBoard = {
           .from('production_jobs')
           .select(`
             *,
+            structured_locations!processed_locations(
+              place_id,
+              formatted_address
+            ),
             production_companies (
               name,
               logo_url
@@ -220,7 +228,7 @@ const JobBoard = {
                 ${[
                   data.department,
                   data.team,
-                  data.processed_locations?.[0]
+                  data.structured_locations?.[0]?.formatted_address
                 ].filter(Boolean).join('; ')}
               </p>
             </div>
@@ -281,7 +289,10 @@ const JobBoard = {
       // Set job details
       element.querySelector('.job-title').textContent = job.title;
       element.querySelector('.job-company').textContent = job.production_companies?.name || '';
-      element.querySelector('.job-location').textContent = job.processed_locations?.[0] || '';
+      
+      // Get formatted address from structured_locations
+      const locationAddress = job.structured_locations?.[0]?.formatted_address || 'Location not specified';
+      element.querySelector('.job-location').textContent = locationAddress;
       
       // Make the entire job listing clickable
       element.style.cursor = 'pointer';
