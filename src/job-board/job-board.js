@@ -216,8 +216,22 @@ const JobBoard = {
             }
             <div class="company-info">
               <h3>${data.production_companies?.name || ''}</h3>
-              <p>${data.processed_locations?.[0] || ''}</p>
+              <p class="company-details">
+                ${[
+                  data.department,
+                  data.team,
+                  data.processed_locations?.[0]
+                ].filter(Boolean).join('; ')}
+              </p>
             </div>
+            ${data.job_url ? 
+              `<a href="${data.job_url}" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  class="apply-button">
+                Apply Now
+              </a>` : ''
+            }
           </div>
           <div class="job-tags">
             ${(data.processed_work_types || [])
