@@ -1,8 +1,14 @@
 /*******************************************************
  * job-board.js
- * Updated to match your schema:
- *   - production_jobs(job_id) primary key
- *   - production_job_locations(job_id references production_jobs(job_id))
+ * 
+ * Uses production_job_locations!production_job_locations_job_fkey
+ * to ensure Supabase recognizes the FK relationship:
+ *   constraint production_job_locations_job_fkey
+ *     FOREIGN KEY (job_id) 
+ *     REFERENCES production_jobs(job_id)
+ * 
+ * No references to "city", "state", or "country" columns
+ * since your error indicated they do not exist.
  *******************************************************/
 
 const JobBoard = {
@@ -13,7 +19,7 @@ const JobBoard = {
       totalResults: 0,
       filters: {
         title: '',
-        location: '',         // For city/state/country text search (optional)
+        location: '',         // We'll do front-end searching on "formatted_address"
         locationTypes: [],
         workTypes: []
       }
@@ -29,9 +35,7 @@ const JobBoard = {
     },
   
     setupFilters() {
-      // -----------------------------
-      // LOCATION TYPE CHECKBOXES
-      // -----------------------------
+      // ----- LOCATION TYPE CHECKBOXES -----
       const locationTypeIds = ['wtoscb', 'wtrecb', 'wthycb', 'wtnscb'];
       const locationTypeValues = ['On-Site', 'Remote', 'Hybrid', 'Not Specified'];
   
@@ -52,9 +56,7 @@ const JobBoard = {
         }
       });
   
-      // -----------------------------
-      // WORK TYPE CHECKBOXES
-      // -----------------------------
+      // ----- WORK TYPE CHECKBOXES -----
       const workTypeIds = ['etftcb', 'etptcb', 'etcocb', 'etsecb', 'etlecb', 'etnscb'];
       const workTypeValues = [
         'Full-Time',
@@ -82,9 +84,7 @@ const JobBoard = {
         }
       });
   
-      // -----------------------------
-      // TITLE SEARCH (JOB TITLE)
-      // -----------------------------
+      // ----- JOB TITLE SEARCH -----
       const searchInput = document.getElementById('search_input');
       const searchButton = document.getElementById('search_button');
       if (searchInput && searchButton) {
@@ -100,9 +100,9 @@ const JobBoard = {
         });
       }
   
-      // -----------------------------
-      // LOCATION TEXT SEARCH (OPTIONAL)
-      // -----------------------------
+      // ----- (OPTIONAL) LOCATION TEXT SEARCH -----
+      // We'll do front-end filtering on "formatted_address" 
+      // since city/state/country columns don't exist.
       const locInput = document.getElementById('location_search_input');
       const locButton = document.getElementById('location_search_button');
       if (locInput && locButton) {
@@ -124,14 +124,14 @@ const JobBoard = {
       this.state.isLoading = true;
   
       try {
-        // IMPORTANT: Query job_id (not "id") from production_jobs
+        // Using the *exact* foreign key name from your schema:
+        // constraint production_job_locations_job_fkey 
+        // to nest production_job_locations.
         let query = window.supabase
           .from('production_jobs')
           .select(`
             job_id,
-            company_id,
             title,
-            created_at,
             processed_location_types,
             processed_work_types,
             production_companies (
@@ -140,43 +140,34 @@ const JobBoard = {
               company_url,
               logo_url
             ),
-            production_job_locations (
+            production_job_locations!production_job_locations_job_fkey (
               is_primary,
+              place_id,
               structured_locations (
                 place_id,
-                city,
-                state,
-                country,
                 formatted_address
               )
             )
           `)
           .order('created_at', { ascending: false });
   
-        // ----- DB Title Filter -----
-        // Make sure "title" is actually the column name in production_jobs.
+        // ----- FILTER BY TITLE IN DB -----
+        // Only if your column is actually named "title"
         if (this.state.filters.title) {
           query = query.ilike('title', `%${this.state.filters.title}%`);
         }
   
-        // ----- DB Location Filter (Optional) -----
-        // "production_job_locations.structured_locations.city" only works if
-        // you set up the Supabase relationship exactly with those names.
-        if (this.state.filters.location) {
-          query = query.or(
-            `production_job_locations.structured_locations.city.ilike.%${this.state.filters.location}%,
-             production_job_locations.structured_locations.state.ilike.%${this.state.filters.location}%,
-             production_job_locations.structured_locations.country.ilike.%${this.state.filters.location}%`
-          );
-        }
+        // We do NOT attempt .or(...) referencing city/state/country 
+        // because your error indicates those columns do not exist.
   
         // Execute query
         const { data: jobsData, error: jobsError } = await query;
         if (jobsError) throw jobsError;
   
-        // ----- FRONT-END FILTERS FOR locationTypes/workTypes -----
+        // ----- FRONT-END FILTERING -----
         let filteredData = jobsData || [];
   
+        // Filter by locationTypes (On-Site, Remote, etc.)
         if (this.state.filters.locationTypes.length > 0) {
           filteredData = filteredData.filter((job) =>
             job.processed_location_types?.some((type) =>
@@ -185,6 +176,7 @@ const JobBoard = {
           );
         }
   
+        // Filter by workTypes (Full-Time, Part-Time, etc.)
         if (this.state.filters.workTypes.length > 0) {
           filteredData = filteredData.filter((job) =>
             job.processed_work_types?.some((type) =>
@@ -193,10 +185,24 @@ const JobBoard = {
           );
         }
   
+        // Optional front-end "location" text filter 
+        // using structured_locations.formatted_address
+        if (this.state.filters.location) {
+          const locSearch = this.state.filters.location.toLowerCase();
+          filteredData = filteredData.filter((job) => {
+            // Check if *any* job location's address includes the search string
+            if (!job.production_job_locations) return false;
+            return job.production_job_locations.some((locObj) => {
+              const addr = locObj.structured_locations?.formatted_address?.toLowerCase() || '';
+              return addr.includes(locSearch);
+            });
+          });
+        }
+  
         this.state.totalResults = filteredData.length;
         this.updateResultsCount();
   
-        // ----- CLEAR OLD JOB LISTINGS -----
+        // ----- CLEAR EXISTING JOB LISTINGS -----
         const jobsContainer = document.querySelector('#job-listings-container');
         const template = jobsContainer.querySelector('.job-listing');
         if (template) {
@@ -212,8 +218,7 @@ const JobBoard = {
           jobsContainer.appendChild(jobElement);
         }
   
-        // If we want infinite scrolling or pagination, adapt below logic:
-        this.state.hasMore = false;
+        this.state.hasMore = false; // If you do infinite scroll, adjust logic
       } catch (err) {
         console.error('Error loading jobs:', err);
         this.state.totalResults = 0;
@@ -233,19 +238,18 @@ const JobBoard = {
         </p>
       `;
   
-      // ----- SET TITLE / COMPANY -----
       element.querySelector('.job-title').textContent = job.title;
       element.querySelector('.job-company').textContent =
         job.production_companies?.name || '';
   
-      // ----- GET LOCATION VIA NEW JUNCTION TABLE -----
+      // ----- Location (From production_job_locations) -----
       let locationText = 'Location not specified';
       if (job.production_job_locations && job.production_job_locations.length > 0) {
         const primaryLoc = job.production_job_locations.find((loc) => loc.is_primary);
         if (primaryLoc && primaryLoc.structured_locations) {
           locationText = primaryLoc.structured_locations.formatted_address || locationText;
         } else {
-          // fallback to first location if none is primary
+          // fallback to the first location if none is primary
           const firstLoc = job.production_job_locations[0].structured_locations;
           if (firstLoc) {
             locationText = firstLoc.formatted_address || locationText;
@@ -254,10 +258,9 @@ const JobBoard = {
       }
       element.querySelector('.job-location').textContent = locationText;
   
-      // ----- CLICK HANDLER -----
+      // ----- Click Handler -----
       element.style.cursor = 'pointer';
       element.addEventListener('click', () => {
-        // remove old 'selected'
         document.querySelectorAll('.job-listing.selected').forEach((el) => {
           el.classList.remove('selected');
         });
@@ -273,14 +276,13 @@ const JobBoard = {
       const titleElement = detailContainer.querySelector('.job-detail-title');
       const contentElement = detailContainer.querySelector('.job-detail-content');
   
-      // Show loading
       titleElement.textContent = 'Loading...';
       contentElement.innerHTML = '<div class="loading-spinner"></div>';
       detailContainer.classList.add('job-detail-visible');
       document.querySelector('.job-board-container').classList.add('show-detail');
   
       try {
-        // ----- DETERMINE PRIMARY LOCATION -----
+        // ----- Determine Primary Location Address -----
         let locationAddress = 'Location not specified';
         if (job.production_job_locations && job.production_job_locations.length > 0) {
           const primaryLoc = job.production_job_locations.find((loc) => loc.is_primary);
@@ -296,7 +298,7 @@ const JobBoard = {
   
         titleElement.textContent = job.title;
   
-        // ----- BUILD JOB DETAILS CONTENT -----
+        // ----- Build Content HTML -----
         const contentHTML = `
           <div class="job-company-header">
             ${
@@ -315,12 +317,12 @@ const JobBoard = {
             ${
               job.job_url
                 ? `<div class="company-header-right">
-                    <a href="${job.job_url}"
-                       target="_blank"
-                       rel="noopener noreferrer"
-                       class="apply-button">
-                      Apply Now
-                    </a>
+                     <a href="${job.job_url}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="apply-button">
+                       Apply Now
+                     </a>
                    </div>`
                 : ''
             }
@@ -379,7 +381,7 @@ const JobBoard = {
         return;
       }
   
-      // Optionally add a results counter
+      // Optional: add results counter
       const resultsCounter = document.createElement('div');
       resultsCounter.id = 'results-counter';
       resultsCounter.className = 'results-counter';
@@ -389,13 +391,10 @@ const JobBoard = {
       this.fetchJobs();
       this.setupInfiniteScroll();
   
-      // Close button logic
       const closeButton = document.querySelector('.job-detail-close');
       if (closeButton) {
         closeButton.addEventListener('click', () => {
-          document
-            .getElementById('job-detail-container')
-            .classList.remove('job-detail-visible');
+          document.getElementById('job-detail-container').classList.remove('job-detail-visible');
           document.querySelector('.job-board-container').classList.remove('show-detail');
         });
       }
