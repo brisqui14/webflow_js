@@ -1,6 +1,6 @@
 /*******************************************************
  * job-board.js
- * 
+ *
  * Two separate inputs:
  *   - #search_input (Title)
  *   - #location_search_input (Location, with autocomplete)
@@ -73,8 +73,6 @@ const JobBoard = {
           this.state.filters.selectedLocationId = location.place_id;
   
           suggestionsList.style.display = 'none';
-          // Optionally, trigger immediate refresh on suggestion click
-          // this.refreshJobs();
         });
         suggestionsList.appendChild(li);
       });
@@ -100,7 +98,7 @@ const JobBoard = {
               this.state.filters.locationTypes =
                 this.state.filters.locationTypes.filter(type => type !== value);
             }
-            this.refreshJobs();
+            // Instead of refreshing immediately, we wait for Search button press.
           });
         }
       });
@@ -126,7 +124,7 @@ const JobBoard = {
               this.state.filters.workTypes =
                 this.state.filters.workTypes.filter(type => type !== value);
             }
-            this.refreshJobs();
+            // Instead of refreshing immediately, we wait for Search button press.
           });
         }
       });
@@ -169,7 +167,7 @@ const JobBoard = {
         });
       }
   
-      // Single button that triggers both
+      // Single button that triggers all
       const searchButton = document.getElementById('search_button');
       if (searchButton) {
         searchButton.addEventListener('click', () => {
@@ -181,28 +179,15 @@ const JobBoard = {
           if (locInput && !this.state.filters.selectedLocationId) {
             this.state.filters.location = locInput.value.trim();
           }
-          this.refreshJobs();
-        });
-      }
   
-      // Optionally handle 'Enter' presses:
-      if (titleInput) {
-        titleInput.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') {
-            this.state.filters.title = titleInput.value.trim();
-            // If user hits Enter from title box, also fetch
-            this.refreshJobs();
-          }
-        });
-      }
-      if (locInput) {
-        locInput.addEventListener('keypress', (e) => {
-          if (e.key === 'Enter') {
-            // If user hasn't chosen a suggestion, just text-based search
-            if (!this.state.filters.selectedLocationId) {
-              this.state.filters.location = locInput.value.trim();
-            }
-            this.refreshJobs();
+          // After setting filters, trigger the job fetch
+          this.refreshJobs();
+  
+          // Optionally set up infinite scroll here after the first search,
+          // so it doesn't trigger on page load:
+          if (!this._infiniteScrollSet) {
+            this.setupInfiniteScroll();
+            this._infiniteScrollSet = true;
           }
         });
       }
@@ -254,6 +239,7 @@ const JobBoard = {
           ]);
         } else if (this.state.filters.location) {
           // If user typed a location but didn't pick from suggestions
+          // Note: .textSearch may require proper Postgres config
           query = query.textSearch(
             'production_job_locations.structured_locations.formatted_address',
             this.state.filters.location
@@ -301,6 +287,7 @@ const JobBoard = {
           jobsContainer.appendChild(jobElement);
         }
   
+        // Since we fetch everything at once, we won't have more beyond this
         this.state.hasMore = false;
       } catch (err) {
         console.error('Error loading jobs:', err);
@@ -474,9 +461,12 @@ const JobBoard = {
       resultsCounter.className = 'results-counter';
       jobsContainer.insertBefore(resultsCounter, jobsContainer.firstChild);
   
+      // Set up filters, but DO NOT fetch on page load
       this.setupFilters();
-      this.fetchJobs();
-      this.setupInfiniteScroll();
+      // this.fetchJobs(); // Removed to avoid auto-loading
+  
+      // Also do NOT set up infinite scroll until the user searches
+      // this.setupInfiniteScroll();
   
       const closeButton = document.querySelector('.job-detail-close');
       if (closeButton) {
