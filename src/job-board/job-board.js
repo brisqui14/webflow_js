@@ -137,12 +137,16 @@ const JobBoard = {
       
           // Apply Location Filter
           if (this.state.filters.location) {
-            query = query.or(`production_job_locations.structured_locations.formatted_address.ilike.%${this.state.filters.location}%`);
+            query = query.filter(
+              'production_job_locations.structured_locations.formatted_address',
+              'ilike',
+              `%${this.state.filters.location}%`
+            );
           }
       
           const { data: jobsData, error: jobsError } = await query;
           if (jobsError) throw jobsError;
-          
+
   
         // Filter in memory for locationType, workType
         let filteredData = jobsData || [];
