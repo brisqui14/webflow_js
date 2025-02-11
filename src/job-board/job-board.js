@@ -185,7 +185,7 @@ const JobBoard = {
                 console.log('Radius search results:', jobs?.length || 0, 'jobs found');
 
             } else {
-                // Standard search
+                // Standard search or location text search
                 console.log('Using standard search with filters:', {
                     title: this.state.filters.title,
                     location: this.state.filters.location,
@@ -193,44 +193,47 @@ const JobBoard = {
                     workTypes: this.state.filters.workTypes
                 });
 
-                let query = window.supabase
-                    .from('production_jobs')
-                    .select(`
-                        job_id,
-                        title,
-                        description,
-                        processed_location_types,
-                        processed_work_types,
-                        production_companies (
-                            company_id,
-                            name,
-                            company_url,
-                            logo_url
-                        ),
-                        production_job_locations!production_job_locations_job_fkey (
-                            is_primary,
-                            place_id,
-                            structured_locations (
-                                place_id,
-                                formatted_address
-                            )
-                        )
-                    `)
-                    .order('created_at', { ascending: false });
-
-                if (this.state.filters.title) {
-                    console.log('Applying title filter:', this.state.filters.title);
-                    query = query.ilike('title', `%${this.state.filters.title}%`);
-                }
+                let data, error;
 
                 if (this.state.filters.location && !this.state.filters.selectedPlaceId) {
-                    console.log('Applying location filter:', this.state.filters.location);
-                    query = query
-                        .filter('production_job_locations.structured_locations.formatted_address', 'ilike', `%${this.state.filters.location}%`)
-                        .filter('production_job_locations.is_primary', 'eq', true);
+                    console.log('Using location text search for:', this.state.filters.location);
+                    // Use the new RPC function for location text search
+                    ({ data, error } = await window.supabase
+                        .rpc('search_jobs_by_location_text', {
+                            location_text: this.state.filters.location,
+                            title_search: this.state.filters.title || null,
+                            location_type_filter: this.state.filters.locationTypes.length > 0 
+                                ? this.state.filters.locationTypes 
+                                : null
+                        }));
+                } else {
+                    // Standard search without location filter
+                    ({ data, error } = await window.supabase
+                        .from('production_jobs')
+                        .select(`
+                            job_id,
+                            title,
+                            description,
+                            processed_location_types,
+                            processed_work_types,
+                            production_companies (
+                                company_id,
+                                name,
+                                company_url,
+                                logo_url
+                            ),
+                            production_job_locations!production_job_locations_job_fkey (
+                                is_primary,
+                                place_id,
+                                structured_locations (
+                                    place_id,
+                                    formatted_address
+                                )
+                            )
+                        `)
+                        .order('created_at', { ascending: false })
+                        .ilike('title', this.state.filters.title ? `%${this.state.filters.title}%` : '%'));
                 }
-
-                const { data, error } = await query;
                 if (error) throw error;
                 jobs = data;
                 console.log('Standard search results:', jobs?.length || 0, 'jobs found');
