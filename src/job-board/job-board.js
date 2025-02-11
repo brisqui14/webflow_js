@@ -209,11 +209,13 @@ const JobBoard = {
                     query = query.ilike('title', `%${this.state.filters.title}%`);
                 }
 
+                // Handle free-text location search
                 if (this.state.filters.location && !this.state.filters.selectedPlaceId) {
-                    query = query.filter(
-                        'production_job_locations.structured_locations.formatted_address',
-                        'ilike',
-                        `%${this.state.filters.location}%`
+                    query = query.filter('job_id', 'in', 
+                        window.supabase
+                            .from('production_job_locations')
+                            .select('job_id')
+                            .filter('structured_locations.formatted_address', 'ilike', `%${this.state.filters.location}%`)
                     );
                 }
 
