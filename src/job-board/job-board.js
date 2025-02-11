@@ -2,7 +2,6 @@
  * job-board.js
  
  *******************************************************/
-
 const JobBoard = {
     state: {
         currentPage: 1,
@@ -21,17 +20,12 @@ const JobBoard = {
      * Initializing filters and event listeners
      *******************************************************/
     setupFilters() {
-        // Title input
         const titleInput = document.getElementById('search_input');
-
-        // Location input
         const locInput = document.getElementById('location_search_input');
-
-        // Search button
         const searchButton = document.getElementById('search_button');
+
         if (searchButton) {
             searchButton.addEventListener('click', () => {
-                // Capture search input values
                 if (titleInput) {
                     this.state.filters.title = titleInput.value.trim();
                 }
@@ -39,10 +33,9 @@ const JobBoard = {
                     this.state.filters.location = locInput.value.trim();
                 }
 
-                // Trigger job search
                 this.refreshJobs();
 
-                // Set up infinite scroll after first search
+                // Re-enable infinite scroll after first search
                 if (!this._infiniteScrollSet) {
                     this.setupInfiniteScroll();
                     this._infiniteScrollSet = true;
@@ -83,14 +76,12 @@ const JobBoard = {
                     )
                 `)
                 .order('created_at', { ascending: false })
-                .limit(1000); // Supabase limit
+                .limit(1000);
 
-            // Apply Title Filter
             if (this.state.filters.title) {
                 query = query.ilike('title', `%${this.state.filters.title}%`);
             }
 
-            // Apply Location Filter
             if (this.state.filters.location) {
                 query = query
                     .ilike('production_job_locations.structured_locations.formatted_address', `%${this.state.filters.location}%`)
@@ -100,7 +91,6 @@ const JobBoard = {
             const { data: jobsData, error: jobsError } = await query;
             if (jobsError) throw jobsError;
 
-            // In-memory filtering for location types & work types
             let filteredData = jobsData || [];
             if (this.state.filters.locationTypes.length > 0) {
                 filteredData = filteredData.filter(job =>
@@ -118,11 +108,9 @@ const JobBoard = {
                 );
             }
 
-            // Update total count
             this.state.totalResults = filteredData.length;
             this.updateResultsCount();
 
-            // Clear existing job listings before adding new ones
             const jobsContainer = document.querySelector('#job-listings-container');
             const template = jobsContainer.querySelector('.job-listing');
             if (template) {
@@ -132,13 +120,11 @@ const JobBoard = {
                 jobsContainer.removeChild(jobsContainer.lastChild);
             }
 
-            // Render Jobs
             for (const job of filteredData) {
                 const jobElement = await this.createJobElement(job);
                 jobsContainer.appendChild(jobElement);
             }
 
-            // No more jobs to load after this batch
             this.state.hasMore = false;
         } catch (err) {
             console.error('Error loading jobs:', err);
@@ -165,7 +151,6 @@ const JobBoard = {
         element.querySelector('.job-company').textContent =
             job.production_companies?.name || '';
 
-        // Extract location
         let locationText = 'Location not specified';
         if (job.production_job_locations && job.production_job_locations.length > 0) {
             const primaryLoc = job.production_job_locations.find(loc => loc.is_primary);
@@ -181,7 +166,6 @@ const JobBoard = {
 
         element.querySelector('.job-location').textContent = locationText;
 
-        // Click event to show job details
         element.style.cursor = 'pointer';
         element.addEventListener('click', () => {
             document.querySelectorAll('.job-listing.selected').forEach(el => {
@@ -195,50 +179,31 @@ const JobBoard = {
     },
 
     /*******************************************************
-     * Display job details
+     * Infinite Scroll
      *******************************************************/
-    async showJobDetails(job) {
-        const detailContainer = document.getElementById('job-detail-container');
-        const titleElement = detailContainer.querySelector('.job-detail-title');
-        const contentElement = detailContainer.querySelector('.job-detail-content');
-
-        titleElement.textContent = 'Loading...';
-        contentElement.innerHTML = '<div class="loading-spinner"></div>';
-        detailContainer.classList.add('job-detail-visible');
-        document.querySelector('.job-board-container').classList.add('show-detail');
-
-        try {
-            let locationAddress = 'Location not specified';
-            if (job.production_job_locations && job.production_job_locations.length > 0) {
-                const primaryLoc = job.production_job_locations.find(loc => loc.is_primary);
-                if (primaryLoc?.structured_locations?.formatted_address) {
-                    locationAddress = primaryLoc.structured_locations.formatted_address;
+    setupInfiniteScroll() {
+        const options = {
+            root: null,
+            rootMargin: '100px',
+            threshold: 0.1
+        };
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting && !this.state.isLoading) {
+                    this.fetchJobs();
                 }
-            }
+            });
+        }, options);
 
-            titleElement.textContent = job.title;
-            contentElement.innerHTML = `
-                <div class="job-company-header">
-                    ${job.production_companies?.logo_url
-                        ? `<img src="${job.production_companies.logo_url}" alt="${job.production_companies.name}" class="company-logo">`
-                        : ''}
-                    <div class="company-info">
-                        <h3 class="company-name">${job.production_companies?.name || ''}</h3>
-                        <div class="company-details">
-                            <p>${locationAddress}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="job-description">${job.description || ''}</div>
-            `;
-        } catch (error) {
-            console.error('Error loading job details:', error);
-            contentElement.innerHTML = `<div class="error-message">
-                Error loading job details: ${error.message}
-            </div>`;
-        }
+        const sentinel = document.createElement('div');
+        sentinel.id = 'infinite-scroll-sentinel';
+        document.querySelector('#job-listings-container').appendChild(sentinel);
+        observer.observe(sentinel);
     },
 
+    /*******************************************************
+     * Update Results Count
+     *******************************************************/
     updateResultsCount() {
         const resultsCounter = document.getElementById('results-counter');
         if (resultsCounter) {
@@ -246,11 +211,17 @@ const JobBoard = {
         }
     },
 
+    /*******************************************************
+     * Refresh Jobs List
+     *******************************************************/
     refreshJobs() {
         this.state.hasMore = true;
         this.fetchJobs();
     },
 
+    /*******************************************************
+     * Initialize the Job Board
+     *******************************************************/
     init() {
         this.setupFilters();
     }
