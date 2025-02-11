@@ -101,50 +101,48 @@ const JobBoard = {
      * The rest is standard fetch/filter logic as before
      *******************************************************/
     async fetchJobs() {
-      if (this.state.isLoading || !this.state.hasMore) return;
-      this.state.isLoading = true;
-  
-      try {
-        let query = window.supabase
-          .from('production_jobs')
-          .select(`
-            job_id,
-            title,
-            description,
-            processed_location_types,
-            processed_work_types,
-            production_companies (
-                company_id,
-                name,
-                company_url,
-                logo_url
-            ),
-            production_job_locations!production_job_locations_job_fkey (
-              is_primary,
-              place_id,
-              structured_locations (
-                  place_id,
-                  formatted_address
+        if (this.state.isLoading || !this.state.hasMore) return;
+        this.state.isLoading = true;
+      
+        try {
+          let query = window.supabase
+            .from('production_jobs')
+            .select(`
+              job_id,
+              title,
+              description,
+              processed_location_types,
+              processed_work_types,
+              production_companies (
+                  company_id,
+                  name,
+                  company_url,
+                  logo_url
+              ),
+              production_job_locations!production_job_locations_job_fkey (
+                is_primary,
+                place_id,
+                structured_locations (
+                    place_id,
+                    formatted_address
+                )
               )
-            )
-          `)
-          .order('created_at', { ascending: false });
-  
-        // Apply Title Filter
-        if (this.state.filters.title) {
-          query = query.ilike('title', `%${this.state.filters.title}%`);
-        }
-  
-        // Apply Location Filter
-        if (this.state.filters.location) {
-          query = query
-            .join('production_job_locations', 'job_id', 'production_job_locations.job_id')
-            .join('structured_locations', 'production_job_locations.place_id', 'structured_locations.place_id')
-            .ilike('structured_locations.formatted_address', `%${this.state.filters.location}%`);
-        }
-  
-        const { data: jobsData, error: jobsError } = await query;
-        if (jobsError) throw jobsError;
+            `)
+            .order('created_at', { ascending: false });
+      
+          // Apply Title Filter
+          if (this.state.filters.title) {
+            query = query.ilike('title', `%${this.state.filters.title}%`);
+          }
+      
+          // Apply Location Filter
+          if (this.state.filters.location) {
+            query = query.or(`production_job_locations.structured_locations.formatted_address.ilike.%${this.state.filters.location}%`);
+          }
+      
+          const { data: jobsData, error: jobsError } = await query;
+          if (jobsError) throw jobsError;
+          
   
         // Filter in memory for locationType, workType
         let filteredData = jobsData || [];
