@@ -31,6 +31,8 @@ const JobBoard = {
             this.state.filters.selectedPlaceId = null;
             
             const searchTerm = e.target.value.trim();
+            this.state.filters.location = searchTerm; // Update location filter
+
             if (searchTerm.length < 2) {
                 suggestionsContainer.style.display = 'none';
                 return;
@@ -55,6 +57,7 @@ const JobBoard = {
                             div.addEventListener('click', () => {
                                 locationInput.value = loc.display_name;
                                 this.state.filters.selectedPlaceId = loc.place_id;
+                                this.state.filters.location = loc.display_name;
                                 suggestionsContainer.style.display = 'none';
                             });
                             suggestionsContainer.appendChild(div);
@@ -144,6 +147,7 @@ const JobBoard = {
                     this.state.filters.title = titleInput.value.trim();
                 }
 
+                console.log('Search clicked with filters:', this.state.filters);
                 this.refreshJobs();
 
                 if (!this._infiniteScrollSet) {
@@ -164,6 +168,7 @@ const JobBoard = {
         try {
             let jobs;
             if (this.state.filters.selectedPlaceId) {
+                console.log('Using radius-based search with place_id:', this.state.filters.selectedPlaceId);
                 // Use radius-based search
                 const { data, error } = await window.supabase
                     .rpc('search_jobs_by_radius', {
@@ -177,9 +182,17 @@ const JobBoard = {
 
                 if (error) throw error;
                 jobs = data;
+                console.log('Radius search results:', jobs?.length || 0, 'jobs found');
 
             } else {
                 // Standard search
+                console.log('Using standard search with filters:', {
+                    title: this.state.filters.title,
+                    location: this.state.filters.location,
+                    locationTypes: this.state.filters.locationTypes,
+                    workTypes: this.state.filters.workTypes
+                });
+
                 let query = window.supabase
                     .from('production_jobs')
                     .select(`
@@ -206,11 +219,12 @@ const JobBoard = {
                     .order('created_at', { ascending: false });
 
                 if (this.state.filters.title) {
+                    console.log('Applying title filter:', this.state.filters.title);
                     query = query.ilike('title', `%${this.state.filters.title}%`);
                 }
 
-                // Handle free-text location search
                 if (this.state.filters.location && !this.state.filters.selectedPlaceId) {
+                    console.log('Applying location filter:', this.state.filters.location);
                     query = query
                         .filter('production_job_locations.structured_locations.formatted_address', 'ilike', `%${this.state.filters.location}%`)
                         .filter('production_job_locations.is_primary', 'eq', true);
@@ -219,12 +233,14 @@ const JobBoard = {
                 const { data, error } = await query;
                 if (error) throw error;
                 jobs = data;
+                console.log('Standard search results:', jobs?.length || 0, 'jobs found');
             }
 
             // Apply filters
             let filteredData = jobs || [];
             
             if (this.state.filters.locationTypes.length > 0) {
+                console.log('Filtering by location types:', this.state.filters.locationTypes);
                 filteredData = filteredData.filter(job =>
                     job.processed_location_types?.some(type =>
                         this.state.filters.locationTypes.includes(type)
@@ -233,6 +249,7 @@ const JobBoard = {
             }
 
             if (this.state.filters.workTypes.length > 0) {
+                console.log('Filtering by work types:', this.state.filters.workTypes);
                 filteredData = filteredData.filter(job =>
                     job.processed_work_types?.some(type =>
                         this.state.filters.workTypes.includes(type)
@@ -255,6 +272,7 @@ const JobBoard = {
             }
 
             // Render jobs
+            console.log('Rendering', filteredData.length, 'jobs after all filters');
             for (const job of filteredData) {
                 const jobElement = await this.createJobElement(job);
                 jobsContainer.appendChild(jobElement);
