@@ -309,27 +309,33 @@ const JobBoard = {
         element.innerHTML = `
             <h3 class="job-title"></h3>
             <p class="job-company-location">
-                <span class="job-company"></span> - <span class="job-location"></span>
+                <span class="job-company"></span>
+                ${job.distance_miles ? `<span class="job-distance">(${job.distance_miles.toFixed(1)} miles)</span>` : ''}
             </p>
+            <div class="job-locations"></div>
         `;
+        
         element.querySelector('.job-title').textContent = job.title;
-        element.querySelector('.job-company').textContent =
-            job.production_companies?.name || '';
-
-        let locationText = 'Location not specified';
+        element.querySelector('.job-company').textContent = job.production_companies?.name || '';
+    
+        // Display all locations
+        const locationsDiv = element.querySelector('.job-locations');
         if (job.production_job_locations && job.production_job_locations.length > 0) {
-            const primaryLoc = job.production_job_locations.find(loc => loc.is_primary);
-            if (primaryLoc && primaryLoc.structured_locations) {
-                locationText = primaryLoc.structured_locations.formatted_address || locationText;
-            } else {
-                const firstLoc = job.production_job_locations[0].structured_locations;
-                if (firstLoc) {
-                    locationText = firstLoc.formatted_address || locationText;
+            job.production_job_locations.forEach(loc => {
+                if (loc.structured_locations?.formatted_address) {
+                    const locSpan = document.createElement('div');
+                    locSpan.className = 'job-location';
+                    locSpan.textContent = loc.structured_locations.formatted_address;
+                    locationsDiv.appendChild(locSpan);
                 }
-            }
+            });
+        } else {
+            const locSpan = document.createElement('div');
+            locSpan.className = 'job-location';
+            locSpan.textContent = 'Location not specified';
+            locationsDiv.appendChild(locSpan);
         }
-        element.querySelector('.job-location').textContent = locationText;
-
+    
         element.style.cursor = 'pointer';
         element.addEventListener('click', () => {
             document.querySelectorAll('.job-listing.selected').forEach(el => {
@@ -338,7 +344,7 @@ const JobBoard = {
             element.classList.add('selected');
             this.showJobDetails(job);
         });
-
+    
         return element;
     },
 
@@ -346,26 +352,20 @@ const JobBoard = {
         const detailContainer = document.getElementById('job-detail-container');
         const titleElement = detailContainer.querySelector('.job-detail-title');
         const contentElement = detailContainer.querySelector('.job-detail-content');
-
+    
         titleElement.textContent = 'Loading...';
         contentElement.innerHTML = '<div class="loading-spinner"></div>';
         detailContainer.classList.add('job-detail-visible');
         document.querySelector('.job-board-container').classList.add('show-detail');
-
+    
         try {
-            let locationAddress = 'Location not specified';
-            if (job.production_job_locations && job.production_job_locations.length > 0) {
-                const primaryLoc = job.production_job_locations.find(loc => loc.is_primary);
-                if (primaryLoc?.structured_locations?.formatted_address) {
-                    locationAddress = primaryLoc.structured_locations.formatted_address;
-                } else {
-                    const firstLoc = job.production_job_locations[0]?.structured_locations;
-                    if (firstLoc?.formatted_address) {
-                        locationAddress = firstLoc.formatted_address;
-                    }
-                }
-            }
-
+            const locationsHTML = job.production_job_locations && job.production_job_locations.length > 0
+                ? job.production_job_locations
+                    .filter(loc => loc.structured_locations?.formatted_address)
+                    .map(loc => `<p>${loc.structured_locations.formatted_address}</p>`)
+                    .join('')
+                : '<p>Location not specified</p>';
+    
             titleElement.textContent = job.title;
             const contentHTML = `
                 <div class="job-company-header">
@@ -379,7 +379,10 @@ const JobBoard = {
                     <div class="company-info">
                         <h3 class="company-name">${job.production_companies?.name || ''}</h3>
                         <div class="company-details">
-                            <p>${locationAddress}</p>
+                            ${job.distance_miles ? `<p class="job-distance">${job.distance_miles.toFixed(1)} miles away</p>` : ''}
+                            <div class="job-locations">
+                                ${locationsHTML}
+                            </div>
                         </div>
                     </div>
                     ${
@@ -463,7 +466,7 @@ const JobBoard = {
 
         // Set up location typeahead
         this.setupLocationTypeahead();
-        
+
         // Set up filters
         this.setupFilters();
 
