@@ -359,6 +359,9 @@ const JobBoard = {
         detailContainer.classList.add('job-detail-visible');
         document.querySelector('.job-board-container').classList.add('show-detail');
     
+        console.log("Job Data:", job); // Debugging line
+        console.log("Job URL:", job.job_url); // Debugging line
+    
         try {
             const locationsHTML = job.production_job_locations && job.production_job_locations.length > 0
                 ? job.production_job_locations
@@ -367,15 +370,27 @@ const JobBoard = {
                     .join('')
                 : '<p>Location not specified</p>';
     
-            // **New: "Apply" button added next to the title**
-            titleElement.innerHTML = `
-                <span>${job.title}</span>
-                ${
-                    job.job_url
-                        ? `<a href="${job.job_url}" target="_blank" class="apply-button">Apply Now</a>`
-                        : ''
-                }
-            `;
+            // Clear previous content
+            titleElement.innerHTML = '';
+    
+            // Create title text element
+            const titleText = document.createElement('span');
+            titleText.textContent = job.title;
+    
+            // Append title
+            titleElement.appendChild(titleText);
+    
+            // Check if job has a URL and create an Apply button
+            if (job.job_url) {
+                const applyButton = document.createElement('a');
+                applyButton.href = job.job_url;
+                applyButton.target = '_blank';
+                applyButton.className = 'apply-button';
+                applyButton.textContent = 'Apply Now';
+    
+                // Append the button next to the title
+                titleElement.appendChild(applyButton);
+            }
     
             const contentHTML = `
                 <div class="job-company-header">
@@ -413,6 +428,7 @@ const JobBoard = {
             </div>`;
         }
     },
+    
     
 
     /*******************************************************
