@@ -215,7 +215,7 @@ const JobBoard = {
                             job_id,
                             title,
                             description,
-                            job_url,  -- ✅ Ensure job_url is fetched
+                            job_url,
                             processed_location_types,
                             processed_work_types,
                             production_companies (
