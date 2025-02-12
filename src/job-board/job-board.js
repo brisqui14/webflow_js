@@ -165,7 +165,7 @@ const JobBoard = {
     async fetchJobs() {
         if (this.state.isLoading || !this.state.hasMore) return;
         this.state.isLoading = true;
-
+    
         try {
             let jobs;
             if (this.state.filters.selectedPlaceId) {
@@ -180,11 +180,11 @@ const JobBoard = {
                             ? this.state.filters.locationTypes 
                             : null
                     });
-
+    
                 if (error) throw error;
                 jobs = data;
                 console.log('Radius search results:', jobs?.length || 0, 'jobs found');
-
+    
             } else {
                 // Standard search or location text search
                 console.log('Using standard search with filters:', {
@@ -193,9 +193,9 @@ const JobBoard = {
                     locationTypes: this.state.filters.locationTypes,
                     workTypes: this.state.filters.workTypes
                 });
-
+    
                 let data, error;
-
+    
                 if (this.state.filters.location && !this.state.filters.selectedPlaceId) {
                     console.log('Using location text search for:', this.state.filters.location);
                     // Use the new RPC function for location text search
@@ -215,6 +215,7 @@ const JobBoard = {
                             job_id,
                             title,
                             description,
+                            job_url,  -- ✅ Ensure job_url is fetched
                             processed_location_types,
                             processed_work_types,
                             production_companies (
@@ -235,11 +236,12 @@ const JobBoard = {
                         .order('created_at', { ascending: false })
                         .ilike('title', this.state.filters.title ? `%${this.state.filters.title}%` : '%'));
                 }
+    
                 if (error) throw error;
                 jobs = data;
                 console.log('Standard search results:', jobs?.length || 0, 'jobs found');
             }
-
+    
             // Apply filters
             let filteredData = jobs || [];
             
@@ -251,7 +253,7 @@ const JobBoard = {
                     )
                 );
             }
-
+    
             if (this.state.filters.workTypes.length > 0) {
                 console.log('Filtering by work types:', this.state.filters.workTypes);
                 filteredData = filteredData.filter(job =>
@@ -260,11 +262,11 @@ const JobBoard = {
                     )
                 );
             }
-
+    
             // Update results count
             this.state.totalResults = filteredData.length;
             this.updateResultsCount();
-
+    
             // Clear existing listings
             const jobsContainer = document.querySelector('#job-listings-container');
             const template = jobsContainer.querySelector('.job-listing');
@@ -274,14 +276,14 @@ const JobBoard = {
             while (jobsContainer.children.length > 1) {
                 jobsContainer.removeChild(jobsContainer.lastChild);
             }
-
+    
             // Render jobs
             console.log('Rendering', filteredData.length, 'jobs after all filters');
             for (const job of filteredData) {
                 const jobElement = await this.createJobElement(job);
                 jobsContainer.appendChild(jobElement);
             }
-
+    
             this.state.hasMore = false;
         } catch (err) {
             console.error('Error loading jobs:', err);
