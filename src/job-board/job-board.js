@@ -1,3 +1,4 @@
+// job-board.js
 const JobBoard = {
     state: {
         currentPage: 1,
@@ -366,7 +367,16 @@ const JobBoard = {
                     .join('')
                 : '<p>Location not specified</p>';
     
-            titleElement.textContent = job.title;
+            // **New: "Apply" button added next to the title**
+            titleElement.innerHTML = `
+                <span>${job.title}</span>
+                ${
+                    job.job_url
+                        ? `<a href="${job.job_url}" target="_blank" class="apply-button">Apply Now</a>`
+                        : ''
+                }
+            `;
+    
             const contentHTML = `
                 <div class="job-company-header">
                     ${
@@ -380,23 +390,9 @@ const JobBoard = {
                         <h3 class="company-name">${job.production_companies?.name || ''}</h3>
                         <div class="company-details">
                             ${job.distance_miles ? `<p class="job-distance">${job.distance_miles.toFixed(1)} miles away</p>` : ''}
-                            <div class="job-locations">
-                                ${locationsHTML}
-                            </div>
+                            <div class="job-locations">${locationsHTML}</div>
                         </div>
                     </div>
-                    ${
-                        job.job_url
-                            ? `<div class="company-header-right">
-                                <a href="${job.job_url}"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    class="apply-button">
-                                    Apply Now
-                                </a>
-                            </div>`
-                            : ''
-                    }
                 </div>
                 <div class="job-tags">
                     ${
@@ -417,6 +413,7 @@ const JobBoard = {
             </div>`;
         }
     },
+    
 
     /*******************************************************
      * Utility Functions
