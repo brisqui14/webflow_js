@@ -1,4 +1,4 @@
-const CompensationFilter = {
+export const CompensationFilter = {
     state: {
         salary: {
             min: 40000,
