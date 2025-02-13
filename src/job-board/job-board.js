@@ -218,6 +218,10 @@ const JobBoard = {
                             job_url,
                             processed_location_types,
                             processed_work_types,
+                            processed_comp,
+                            comp_frequency,
+                            comp_min_value,
+                            comp_max_value,
                             production_companies (
                                 company_id,
                                 name,
@@ -309,8 +313,29 @@ const JobBoard = {
     async createJobElement(job) {
         const element = document.createElement('div');
         element.className = 'job-listing';
+        
+        // Format compensation if it exists
+        let compensationHTML = '';
+        if (job.processed_comp) {
+            const formatValue = (value) => job.comp_frequency === 'yearly' 
+                ? `$${Math.round(value/1000)}k` 
+                : `$${value}/hr`;
+                
+            compensationHTML = `
+                <div class="job-compensation">
+                    ${job.processed_comp === 'fixed' 
+                        ? formatValue(job.comp_min_value)
+                        : `${formatValue(job.comp_min_value)} - ${formatValue(job.comp_max_value)}`
+                    }
+                    ${job.comp_frequency === 'yearly' ? '/year' : '/hour'}
+                </div>`;
+        }
+    
         element.innerHTML = `
-            <h3 class="job-title"></h3>
+            <div class="job-header">
+                <h3 class="job-title"></h3>
+                ${compensationHTML}
+            </div>
             <p class="job-company-location">
                 <span class="job-company"></span>
                 ${job.distance_miles ? `<span class="job-distance">(${job.distance_miles.toFixed(1)} miles)</span>` : ''}
@@ -394,6 +419,26 @@ const JobBoard = {
                 titleElement.appendChild(applyButton);
             }
     
+            // Format compensation if it exists
+            let compensationHTML = '';
+            if (job.processed_comp) {
+                const formatValue = (value) => job.comp_frequency === 'yearly' 
+                    ? `$${Math.round(value/1000)}k` 
+                    : `$${value}/hr`;
+                    
+                compensationHTML = `
+                    <div class="job-compensation-detail">
+                        <span class="compensation-label">Compensation:</span>
+                        <span class="compensation-value">
+                            ${job.processed_comp === 'fixed' 
+                                ? formatValue(job.comp_min_value)
+                                : `${formatValue(job.comp_min_value)} - ${formatValue(job.comp_max_value)}`
+                            }
+                            ${job.comp_frequency === 'yearly' ? ' per year' : ' per hour'}
+                        </span>
+                    </div>`;
+            }
+    
             const contentHTML = `
                 <div class="job-company-header">
                     ${
@@ -406,6 +451,7 @@ const JobBoard = {
                     <div class="company-info">
                         <h3 class="company-name">${job.production_companies?.name || ''}</h3>
                         <div class="company-details">
+                            ${compensationHTML}
                             ${job.distance_miles ? `<p class="job-distance">${job.distance_miles.toFixed(1)} miles away</p>` : ''}
                             <div class="job-locations">${locationsHTML}</div>
                         </div>
@@ -430,7 +476,6 @@ const JobBoard = {
             </div>`;
         }
     },
-    
     
 
     /*******************************************************
