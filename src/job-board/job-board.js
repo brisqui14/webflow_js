@@ -319,7 +319,7 @@ const JobBoard = {
         if (job.processed_comp) {
             const formatValue = (value) => job.comp_frequency === 'yearly' 
                 ? `$${Math.round(value/1000)}k` 
-                : `$${value}/hr`;
+                : `$${value}`;
                 
             compensationHTML = `
                 <div class="job-compensation">
