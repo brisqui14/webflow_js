@@ -1,4 +1,7 @@
 // job-board.js
+
+import CompensationFilter from './comp-filt.js';
+
 const JobBoard = {
     state: {
         currentPage: 1,
@@ -12,6 +15,10 @@ const JobBoard = {
             radiusMiles: 25,
             locationTypes: [],
             workTypes: [],
+            compensation: {
+                salary: null,  
+                hourly: null
+            }
         },
     },
 
@@ -176,8 +183,8 @@ const JobBoard = {
                         center_place_id: this.state.filters.selectedPlaceId,
                         radius_miles: this.state.filters.radiusMiles,
                         title_search: this.state.filters.title || null,
-                        location_type_filter: this.state.filters.locationTypes.length > 0 
-                            ? this.state.filters.locationTypes 
+                        location_type_filter: this.state.filters.locationTypes.length > 0
+                            ? this.state.filters.locationTypes
                             : null
                     });
     
@@ -191,7 +198,8 @@ const JobBoard = {
                     title: this.state.filters.title,
                     location: this.state.filters.location,
                     locationTypes: this.state.filters.locationTypes,
-                    workTypes: this.state.filters.workTypes
+                    workTypes: this.state.filters.workTypes,
+                    compensation: this.state.filters.compensation
                 });
     
                 let data, error;
@@ -203,8 +211,8 @@ const JobBoard = {
                         .rpc('search_jobs_by_location_text', {
                             location_text: this.state.filters.location,
                             title_search: this.state.filters.title || null,
-                            location_type_filter: this.state.filters.locationTypes.length > 0 
-                                ? this.state.filters.locationTypes 
+                            location_type_filter: this.state.filters.locationTypes.length > 0
+                                ? this.state.filters.locationTypes
                                 : null
                         }));
                 } else {
@@ -249,6 +257,7 @@ const JobBoard = {
             // Apply filters
             let filteredData = jobs || [];
             
+            // Location Types filter
             if (this.state.filters.locationTypes.length > 0) {
                 console.log('Filtering by location types:', this.state.filters.locationTypes);
                 filteredData = filteredData.filter(job =>
@@ -258,6 +267,7 @@ const JobBoard = {
                 );
             }
     
+            // Work Types filter
             if (this.state.filters.workTypes.length > 0) {
                 console.log('Filtering by work types:', this.state.filters.workTypes);
                 filteredData = filteredData.filter(job =>
@@ -265,6 +275,29 @@ const JobBoard = {
                         this.state.filters.workTypes.includes(type)
                     )
                 );
+            }
+    
+            // Compensation filter
+            if (this.state.filters.compensation.salary || this.state.filters.compensation.hourly) {
+                console.log('Filtering by compensation:', this.state.filters.compensation);
+                filteredData = filteredData.filter(job => {
+                    if (!job.processed_comp || !job.comp_frequency) return false;
+                    
+                    const salaryFilter = this.state.filters.compensation.salary;
+                    const hourlyFilter = this.state.filters.compensation.hourly;
+                    
+                    if (job.comp_frequency === 'yearly' && salaryFilter) {
+                        return job.comp_min_value >= salaryFilter.min && 
+                               job.comp_max_value <= salaryFilter.max;
+                    }
+                    
+                    if (job.comp_frequency === 'hourly' && hourlyFilter) {
+                        return job.comp_min_value >= hourlyFilter.min && 
+                               job.comp_max_value <= hourlyFilter.max;
+                    }
+                    
+                    return false;
+                });
             }
     
             // Update results count
@@ -530,6 +563,9 @@ const JobBoard = {
         // Set up filters
         this.setupFilters();
 
+        // Set up compensation filters
+        this.setupCompensationFilters();
+        
         // Set up detail view close button
         const closeButton = document.querySelector('.job-detail-close');
         if (closeButton) {
