@@ -80,14 +80,21 @@ updateFilterViewDisplay() {
         if (radiusView) {
             const locationInput = document.getElementById('location_search_input');
             const locationValue = locationInput ? locationInput.value.trim() : '';
-            const radiusSelect = document.getElementById('radius_select');
             
-            if (locationValue && radiusSelect && radiusSelect.options.length > 0) {
-                const selectedOption = radiusSelect.options[radiusSelect.selectedIndex];
-                const selectedRadius = selectedOption ? selectedOption.text : 'Within 25 miles';
+            // Get the radius select - if it doesn't exist, don't try to access options
+            const radiusSelect = document.getElementById('radius_select');
+            let selectedRadius = 'Within 25 miles'; // Default value
+            
+            if (radiusSelect && radiusSelect.options && radiusSelect.options.length > 0) {
+                try {
+                    selectedRadius = radiusSelect.options[radiusSelect.selectedIndex].text;
+                } catch (e) {
+                    console.log('Could not get selected radius text, using default');
+                }
+            }
+            
+            if (locationValue) {
                 radiusView.textContent = selectedRadius;
-                
-                // Only try to access parentElement if it exists
                 if (radiusView.parentElement) {
                     radiusView.parentElement.style.display = 'block';
                 }
@@ -124,16 +131,10 @@ updateFilterViewDisplay() {
             includeUndefinedView.textContent = includeUndefinedPay ? 'Yes' : 'No';
         }
 
-        // Posted Date
+        // Posted Date - Since this isn't implemented yet, just show a default value
         const postedDateView = document.getElementById('age-view');
         if (postedDateView) {
-            const ageSelect = document.getElementById('age');
-            if (ageSelect && ageSelect.options && ageSelect.options.length > 0) {
-                const selectedOption = ageSelect.options[ageSelect.selectedIndex];
-                postedDateView.textContent = selectedOption ? selectedOption.text : 'Any Time';
-            } else {
-                postedDateView.textContent = 'Any Time';
-            }
+            postedDateView.textContent = 'Any Time';
         }
     } catch (error) {
         console.error('Error updating filter view display:', error);
