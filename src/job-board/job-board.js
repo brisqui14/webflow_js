@@ -783,14 +783,15 @@ updateFilterViewDisplay() {
         const detailContainer = document.getElementById('job-detail-container');
         const titleElement = detailContainer.querySelector('.job-detail-title');
         const contentElement = detailContainer.querySelector('.job-detail-content');
-   
+       
         titleElement.textContent = 'Loading...';
         contentElement.innerHTML = '<div class="loading-spinner"></div>';
-        detailContainer.classList.add('job-detail-visible');
+        
+        // ONLY add this class to control visibility - this matches your CSS pattern
         document.querySelector('.job-board-container').classList.add('show-detail');
-   
-        console.log("Job Data:", job); // Debugging line
-        console.log("Job URL:", job.job_url); // Debugging line
+       
+        console.log("Job Data:", job);
+        console.log("Job URL:", job.job_url);
    
         try {
             const locationsHTML = job.production_job_locations && job.production_job_locations.length > 0
@@ -931,11 +932,11 @@ updateFilterViewDisplay() {
         this.setupCompensationFilters();
 
         // Set up detail view close button
+        // Set up detail view close button
         const closeButton = document.querySelector('.job-detail-close');
         if (closeButton) {
             closeButton.addEventListener('click', () => {
-                document.getElementById('job-detail-container')
-                    .classList.remove('job-detail-visible');
+                // This is the only class we need to remove
                 document.querySelector('.job-board-container')
                     .classList.remove('show-detail');
             });
