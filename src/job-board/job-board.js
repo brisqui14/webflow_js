@@ -13,8 +13,8 @@ const JobBoard = {
             locationTypes: [],
             workTypes: [],
             compensation: {
-                minSalary: 40000,
-                minHourly: 15,
+                minSalary: null,
+                minHourly: null,
                 salaryOnly: false,
                 hourlyOnly: false,
                 includeUndefined: true
@@ -97,29 +97,22 @@ const JobBoard = {
         const hourlyOnlyCheckbox = document.getElementById('cohocb');
         const includeUndefinedPayCheckbox = document.getElementById('coijcb');
         
-        // Set initial values if inputs exist
-        if (salaryMinInput) {
-            salaryMinInput.value = this.state.filters.compensation.minSalary / 1000; // Display in K
-        }
-        
-        if (hourlyMinInput) {
-            hourlyMinInput.value = this.state.filters.compensation.minHourly;
-        }
-        
-        // Set up event listeners
+        // Set up event listeners for inputs
         if (salaryMinInput) {
             salaryMinInput.addEventListener('input', (e) => {
-                const value = parseFloat(e.target.value) * 1000; // Convert back to full amount
-                this.state.filters.compensation.minSalary = value || 0;
+                const value = e.target.value.trim() ? parseFloat(e.target.value) : null;
+                this.state.filters.compensation.minSalary = value;
             });
         }
         
         if (hourlyMinInput) {
             hourlyMinInput.addEventListener('input', (e) => {
-                this.state.filters.compensation.minHourly = parseFloat(e.target.value) || 0;
+                const value = e.target.value.trim() ? parseFloat(e.target.value) : null;
+                this.state.filters.compensation.minHourly = value;
             });
         }
         
+        // Set up checkbox listeners
         if (salaryOnlyCheckbox) {
             salaryOnlyCheckbox.addEventListener('change', (e) => {
                 this.state.filters.compensation.salaryOnly = e.target.checked;
@@ -338,41 +331,46 @@ const JobBoard = {
             }
 
             // Compensation filters
-const compFilters = this.state.filters.compensation;
-const minSalary = compFilters.minSalary;
-const minHourly = compFilters.minHourly;
-const salaryOnly = compFilters.salaryOnly;
-const hourlyOnly = compFilters.hourlyOnly;
-const includeUndefined = compFilters.includeUndefined;
+            const compFilters = this.state.filters.compensation;
+            const minSalary = compFilters.minSalary;
+            const minHourly = compFilters.minHourly;
+            const salaryOnly = compFilters.salaryOnly;
+            const hourlyOnly = compFilters.hourlyOnly;
+            const includeUndefined = compFilters.includeUndefined;
 
-// Apply compensation filtering
-if (minSalary > 0 || minHourly > 0 || salaryOnly || hourlyOnly) {
-    console.log('Filtering by compensation:', compFilters);
-    filteredData = filteredData.filter(job => {
-        // Handle undefined compensation
-        if (!job.processed_comp || !job.comp_frequency) {
-            return includeUndefined;
-        }
-        
-        // Handle frequency filtering
-        if (salaryOnly && job.comp_frequency !== 'yearly') return false;
-        if (hourlyOnly && job.comp_frequency !== 'hourly') return false;
-        
-        // Handle minimum filtering
-        if (job.comp_frequency === 'yearly' && minSalary > 0) {
-            return job.comp_min_value >= minSalary;
-        }
-        
-        if (job.comp_frequency === 'hourly' && minHourly > 0) {
-            return job.comp_min_value >= minHourly;
-        }
-        
-        return true;
-    });
-} else if (!includeUndefined) {
-    // If no other compensation filters but we should exclude undefined
-    filteredData = filteredData.filter(job => job.processed_comp && job.comp_frequency);
-}
+            // Apply compensation filtering
+            const hasCompFilters = (minSalary !== null && minSalary !== undefined) || 
+                                (minHourly !== null && minHourly !== undefined) || 
+                                salaryOnly || 
+                                hourlyOnly;
+
+            if (hasCompFilters) {
+                console.log('Filtering by compensation:', compFilters);
+                filteredData = filteredData.filter(job => {
+                    // Handle undefined compensation
+                    if (!job.processed_comp || !job.comp_frequency) {
+                        return includeUndefined;
+                    }
+                    
+                    // Handle frequency filtering
+                    if (salaryOnly && job.comp_frequency !== 'yearly') return false;
+                    if (hourlyOnly && job.comp_frequency !== 'hourly') return false;
+                    
+                    // Handle minimum filtering - only apply if values are provided
+                    if (job.comp_frequency === 'yearly' && minSalary !== null && minSalary !== undefined) {
+                        return job.comp_min_value >= minSalary;
+                    }
+                    
+                    if (job.comp_frequency === 'hourly' && minHourly !== null && minHourly !== undefined) {
+                        return job.comp_min_value >= minHourly;
+                    }
+                    
+                    return true;
+                });
+            } else if (!includeUndefined) {
+                // If no other compensation filters but we should exclude undefined
+                filteredData = filteredData.filter(job => job.processed_comp && job.comp_frequency);
+            }
    
             // Update results count
             this.state.totalResults = filteredData.length;
