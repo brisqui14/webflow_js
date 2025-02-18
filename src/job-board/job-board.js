@@ -120,81 +120,98 @@ const JobBoard = {
     /*******************************************************
      * Filter Setup
      *******************************************************/
-    setupFilters() {
-        // Location Type checkboxes
-        const locationTypeIds = ['wtoscb', 'wtrecb', 'wthycb', 'wtnscb'];
-        const locationTypeValues = ['On-Site', 'Remote', 'Hybrid', 'Not Specified'];
-        locationTypeIds.forEach((id, index) => {
-            const checkbox = document.getElementById(id);
-            if (checkbox) {
-                checkbox.addEventListener('change', () => {
-                    const value = locationTypeValues[index];
-                    if (checkbox.checked) {
-                        this.state.filters.locationTypes.push(value);
-                    } else {
-                        this.state.filters.locationTypes =
-                            this.state.filters.locationTypes.filter(type => type !== value);
-                    }
-                });
+    /*******************************************************
+ * Filter Setup
+ *******************************************************/
+setupFilters() {
+    // 1. Clear or initialize these arrays so we can re-populate them
+    this.state.filters.locationTypes = [];
+    this.state.filters.workTypes = [];
+
+    // 2. Location Type checkboxes
+    const locationTypeIds = ['wtoscb', 'wtrecb', 'wthycb', 'wtnscb'];
+    const locationTypeValues = ['On-Site', 'Remote', 'Hybrid', 'Not Specified'];
+
+    locationTypeIds.forEach((id, index) => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) {
+            // If the box is already checked on page load, add it to the array
+            if (checkbox.checked) {
+                this.state.filters.locationTypes.push(locationTypeValues[index]);
             }
-        });
-
-        // Work Type checkboxes
-        const workTypeIds = ['etftcb', 'etptcb', 'etcocb', 'etsecb', 'etlecb', 'etnscb'];
-        const workTypeValues = [
-            'Full-Time',
-            'Part-Time',
-            'Contract',
-            'Seasonal',
-            'Learning Experience Opportunity',
-            'Not Specified'
-        ];
-        workTypeIds.forEach((id, index) => {
-            const checkbox = document.getElementById(id);
-            if (checkbox) {
-                checkbox.addEventListener('change', () => {
-                    const value = workTypeValues[index];
-                    if (checkbox.checked) {
-                        this.state.filters.workTypes.push(value);
-                    } else {
-                        this.state.filters.workTypes =
-                            this.state.filters.workTypes.filter(type => type !== value);
-                    }
-                });
-            }
-        });
-
-        // Title input
-        const titleInput = document.getElementById('search_input');
-
-        // Location input handled by type-ahead setup
-
-        // Radius select
-        const radiusSelect = document.getElementById('radius_select');
-        if (radiusSelect) {
-            radiusSelect.addEventListener('change', (e) => {
-                this.state.filters.radiusMiles = parseInt(e.target.value, 10);
-            });
-        }
-
-        // Search button
-        const searchButton = document.getElementById('search_button');
-        if (searchButton) {
-            searchButton.addEventListener('click', () => {
-                if (titleInput) {
-                    this.state.filters.title = titleInput.value.trim();
-                }
-
-                console.log('Search clicked with filters:', this.state.filters);
-                this.refreshJobs();
-
-                if (!this._infiniteScrollSet) {
-                    this.setupInfiniteScroll();
-                    this._infiniteScrollSet = true;
+            // Listen for user toggles
+            checkbox.addEventListener('change', () => {
+                const value = locationTypeValues[index];
+                if (checkbox.checked) {
+                    this.state.filters.locationTypes.push(value);
+                } else {
+                    this.state.filters.locationTypes =
+                        this.state.filters.locationTypes.filter(type => type !== value);
                 }
             });
         }
-    },
+    });
+
+    // 3. Work Type checkboxes
+    const workTypeIds = ['etftcb', 'etptcb', 'etcocb', 'etsecb', 'etlecb', 'etnscb'];
+    const workTypeValues = [
+        'Full-Time',
+        'Part-Time',
+        'Contract',
+        'Seasonal',
+        'Learning Experience Opportunity',
+        'Not Specified'
+    ];
+
+    workTypeIds.forEach((id, index) => {
+        const checkbox = document.getElementById(id);
+        if (checkbox) {
+            // If the box is already checked on page load, add it
+            if (checkbox.checked) {
+                this.state.filters.workTypes.push(workTypeValues[index]);
+            }
+            // Listen for changes
+            checkbox.addEventListener('change', () => {
+                const value = workTypeValues[index];
+                if (checkbox.checked) {
+                    this.state.filters.workTypes.push(value);
+                } else {
+                    this.state.filters.workTypes =
+                        this.state.filters.workTypes.filter(type => type !== value);
+                }
+            });
+        }
+    });
+
+    // 4. Title input
+    const titleInput = document.getElementById('search_input');
+    // (Location input is handled by your typeahead setup, so we skip it here.)
+
+    // 5. Radius select
+    const radiusSelect = document.getElementById('radius_select');
+    if (radiusSelect) {
+        radiusSelect.addEventListener('change', (e) => {
+            this.state.filters.radiusMiles = parseInt(e.target.value, 10);
+        });
+    }
+
+    // 6. Search button
+    const searchButton = document.getElementById('search_button');
+    if (searchButton) {
+        searchButton.addEventListener('click', () => {
+            if (titleInput) {
+                this.state.filters.title = titleInput.value.trim();
+            }
+            console.log('Search clicked with filters:', this.state.filters);
+            this.refreshJobs();
+
+            if (!this._infiniteScrollSet) {
+                this.setupInfiniteScroll();
+                this._infiniteScrollSet = true;
+            }
+        });
+    }
+},
 
     /*******************************************************
      * Job Fetching and Filtering
