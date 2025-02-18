@@ -1,4 +1,4 @@
-const CompensationFilter = {
+window.const CompensationFilter = {
     state: {
         salary: {
             min: 40000,
@@ -156,5 +156,4 @@ const CompensationFilter = {
     }
 };
 
-export default CompensationFilter;
 

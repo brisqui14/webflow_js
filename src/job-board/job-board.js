@@ -1,7 +1,4 @@
 // job-board.js
-
-import CompensationFilter from './comp-filt.js';
-
 const JobBoard = {
     state: {
         currentPage: 1,
@@ -16,8 +13,16 @@ const JobBoard = {
             locationTypes: [],
             workTypes: [],
             compensation: {
-                salary: null,  
-                hourly: null
+                salary: {
+                    min: 40000,
+                    max: 200000,
+                    active: false
+                },
+                hourly: {
+                    min: 15,
+                    max: 100,
+                    active: false
+                }
             }
         },
     },
@@ -37,7 +42,7 @@ const JobBoard = {
         locationInput.addEventListener('input', async (e) => {
             clearTimeout(typeaheadTimeout);
             this.state.filters.selectedPlaceId = null;
-            
+           
             const searchTerm = e.target.value.trim();
             this.state.filters.location = searchTerm; // Update location filter
 
@@ -49,7 +54,7 @@ const JobBoard = {
             typeaheadTimeout = setTimeout(async () => {
                 try {
                     const { data: locations, error } = await window.supabase
-                        .rpc('search_location_typeahead', { 
+                        .rpc('search_location_typeahead', {
                             search_term: searchTerm,
                             limit_count: 5
                         });
@@ -85,6 +90,156 @@ const JobBoard = {
                 suggestionsContainer.style.display = 'none';
             }
         });
+    },
+
+    /*******************************************************
+     * Compensation Filters Implementation
+     *******************************************************/
+    formatCompValue(value, type) {
+        if (type === 'salary') {
+            return `$${Math.round(value/1000)}k`;
+        }
+        return `$${value}`;
+    },
+    
+    setupCompensationFilters() {
+        this.createDualRangeSlider({
+            containerId: 'salary-filter',
+            type: 'salary'
+        });
+        
+        this.createDualRangeSlider({
+            containerId: 'hourly-filter',
+            type: 'hourly'
+        });
+    },
+    
+    createDualRangeSlider(options) {
+        const {
+            containerId,
+            type // 'salary' or 'hourly'
+        } = options;
+        
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const filterState = this.state.filters.compensation[type];
+        
+        const initialHTML = `
+            <div class="compensation-filter">
+                <div class="filter-header">
+                    <span class="filter-title">${type === 'salary' ? 'Salary Range' : 'Hourly Rate'}</span>
+                    <button class="edit-button">Edit</button>
+                </div>
+                <div class="filter-display">
+                    <span class="range-display"></span>
+                </div>
+                <div class="filter-editor" style="display: none;">
+                    <div class="dual-slider-container">
+                        <div class="slider-track"></div>
+                        <input type="range" 
+                            class="range-input min" 
+                            min="${type === 'salary' ? 40000 : 15}" 
+                            max="${type === 'salary' ? 200000 : 100}" 
+                            value="${filterState.min}">
+                        <input type="range" 
+                            class="range-input max" 
+                            min="${type === 'salary' ? 40000 : 15}" 
+                            max="${type === 'salary' ? 200000 : 100}" 
+                            value="${filterState.max}">
+                    </div>
+                    <div class="range-values">
+                        <span class="min-value"></span>
+                        <span class="max-value"></span>
+                    </div>
+                    <div class="button-group">
+                        <button class="cancel-button">Cancel</button>
+                        <button class="apply-button">Apply</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        container.innerHTML = initialHTML;
+        
+        const that = this; // Reference to JobBoard for event handlers
+        const editor = container.querySelector('.filter-editor');
+        const display = container.querySelector('.filter-display');
+        const rangeDisplay = container.querySelector('.range-display');
+        const minInput = container.querySelector('.range-input.min');
+        const maxInput = container.querySelector('.range-input.max');
+        const minValue = container.querySelector('.min-value');
+        const maxValue = container.querySelector('.max-value');
+        const editButton = container.querySelector('.edit-button');
+        const cancelButton = container.querySelector('.cancel-button');
+        const applyButton = container.querySelector('.apply-button');
+        const track = container.querySelector('.slider-track');
+        
+        const updateDisplay = () => {
+            const displayText = `${that.formatCompValue(filterState.min, type)} - ${that.formatCompValue(filterState.max, type)}${type === 'salary' ? '/year' : '/hour'}`;
+            rangeDisplay.textContent = displayText;
+            minValue.textContent = that.formatCompValue(filterState.min, type);
+            maxValue.textContent = that.formatCompValue(filterState.max, type);
+        };
+        
+        const updateSlider = () => {
+            const minPercent = ((filterState.min - minInput.min) / (minInput.max - minInput.min)) * 100;
+            const maxPercent = ((filterState.max - minInput.min) / (minInput.max - minInput.min)) * 100;
+            
+            track.style.background = `linear-gradient(
+                to right,
+                #e5e7eb 0%,
+                #e5e7eb ${minPercent}%,
+                #3b82f6 ${minPercent}%,
+                #3b82f6 ${maxPercent}%,
+                #e5e7eb ${maxPercent}%,
+                #e5e7eb 100%
+            )`;
+        };
+        
+        minInput.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            filterState.min = Math.min(value, filterState.max - (type === 'salary' ? 10000 : 1));
+            minInput.value = filterState.min;
+            updateDisplay();
+            updateSlider();
+        });
+        
+        maxInput.addEventListener('input', (e) => {
+            const value = parseInt(e.target.value);
+            filterState.max = Math.max(value, filterState.min + (type === 'salary' ? 10000 : 1));
+            maxInput.value = filterState.max;
+            updateDisplay();
+            updateSlider();
+        });
+        
+        editButton.addEventListener('click', () => {
+            filterState.previousMin = filterState.min;
+            filterState.previousMax = filterState.max;
+            editor.style.display = 'block';
+            editButton.style.display = 'none';
+        });
+        
+        cancelButton.addEventListener('click', () => {
+            filterState.min = filterState.previousMin;
+            filterState.max = filterState.previousMax;
+            filterState.active = false;
+            editor.style.display = 'none';
+            editButton.style.display = 'block';
+            updateDisplay();
+            updateSlider();
+            that.refreshJobs();
+        });
+        
+        applyButton.addEventListener('click', () => {
+            filterState.active = true;
+            editor.style.display = 'none';
+            editButton.style.display = 'block';
+            that.refreshJobs();
+        });
+        
+        updateDisplay();
+        updateSlider();
     },
 
     /*******************************************************
@@ -172,7 +327,7 @@ const JobBoard = {
     async fetchJobs() {
         if (this.state.isLoading || !this.state.hasMore) return;
         this.state.isLoading = true;
-    
+   
         try {
             let jobs;
             if (this.state.filters.selectedPlaceId) {
@@ -187,11 +342,11 @@ const JobBoard = {
                             ? this.state.filters.locationTypes
                             : null
                     });
-    
+   
                 if (error) throw error;
                 jobs = data;
                 console.log('Radius search results:', jobs?.length || 0, 'jobs found');
-    
+   
             } else {
                 // Standard search or location text search
                 console.log('Using standard search with filters:', {
@@ -201,9 +356,9 @@ const JobBoard = {
                     workTypes: this.state.filters.workTypes,
                     compensation: this.state.filters.compensation
                 });
-    
+   
                 let data, error;
-    
+   
                 if (this.state.filters.location && !this.state.filters.selectedPlaceId) {
                     console.log('Using location text search for:', this.state.filters.location);
                     // Use the new RPC function for location text search
@@ -248,16 +403,15 @@ const JobBoard = {
                         .order('created_at', { ascending: false })
                         .ilike('title', this.state.filters.title ? `%${this.state.filters.title}%` : '%'));
                 }
-    
+   
                 if (error) throw error;
                 jobs = data;
                 console.log('Standard search results:', jobs?.length || 0, 'jobs found');
             }
-    
+   
             // Apply filters
             let filteredData = jobs || [];
-            
-            // Location Types filter
+           
             if (this.state.filters.locationTypes.length > 0) {
                 console.log('Filtering by location types:', this.state.filters.locationTypes);
                 filteredData = filteredData.filter(job =>
@@ -266,8 +420,7 @@ const JobBoard = {
                     )
                 );
             }
-    
-            // Work Types filter
+   
             if (this.state.filters.workTypes.length > 0) {
                 console.log('Filtering by work types:', this.state.filters.workTypes);
                 filteredData = filteredData.filter(job =>
@@ -276,22 +429,22 @@ const JobBoard = {
                     )
                 );
             }
-    
-            // Compensation filter
-            if (this.state.filters.compensation.salary || this.state.filters.compensation.hourly) {
+
+            // Compensation filters
+            const salaryFilter = this.state.filters.compensation.salary;
+            const hourlyFilter = this.state.filters.compensation.hourly;
+            
+            if (salaryFilter.active || hourlyFilter.active) {
                 console.log('Filtering by compensation:', this.state.filters.compensation);
                 filteredData = filteredData.filter(job => {
                     if (!job.processed_comp || !job.comp_frequency) return false;
                     
-                    const salaryFilter = this.state.filters.compensation.salary;
-                    const hourlyFilter = this.state.filters.compensation.hourly;
-                    
-                    if (job.comp_frequency === 'yearly' && salaryFilter) {
+                    if (job.comp_frequency === 'yearly' && salaryFilter.active) {
                         return job.comp_min_value >= salaryFilter.min && 
                                job.comp_max_value <= salaryFilter.max;
                     }
                     
-                    if (job.comp_frequency === 'hourly' && hourlyFilter) {
+                    if (job.comp_frequency === 'hourly' && hourlyFilter.active) {
                         return job.comp_min_value >= hourlyFilter.min && 
                                job.comp_max_value <= hourlyFilter.max;
                     }
@@ -299,11 +452,11 @@ const JobBoard = {
                     return false;
                 });
             }
-    
+   
             // Update results count
             this.state.totalResults = filteredData.length;
             this.updateResultsCount();
-    
+   
             // Clear existing listings
             const jobsContainer = document.querySelector('#job-listings-container');
             const template = jobsContainer.querySelector('.job-listing');
@@ -313,14 +466,14 @@ const JobBoard = {
             while (jobsContainer.children.length > 1) {
                 jobsContainer.removeChild(jobsContainer.lastChild);
             }
-    
+   
             // Render jobs
             console.log('Rendering', filteredData.length, 'jobs after all filters');
             for (const job of filteredData) {
                 const jobElement = await this.createJobElement(job);
                 jobsContainer.appendChild(jobElement);
             }
-    
+   
             this.state.hasMore = false;
         } catch (err) {
             console.error('Error loading jobs:', err);
@@ -363,7 +516,7 @@ const JobBoard = {
                     ${job.comp_frequency === 'yearly' ? '/year' : '/hour'}
                 </div>`;
         }
-    
+
         element.innerHTML = `
             <div class="job-header">
                 <h3 class="job-title"></h3>
@@ -375,10 +528,10 @@ const JobBoard = {
             </p>
             <div class="job-locations"></div>
         `;
-        
+       
         element.querySelector('.job-title').textContent = job.title;
         element.querySelector('.job-company').textContent = job.production_companies?.name || '';
-    
+   
         // Display all locations
         const locationsDiv = element.querySelector('.job-locations');
         if (job.production_job_locations && job.production_job_locations.length > 0) {
@@ -396,7 +549,7 @@ const JobBoard = {
             locSpan.textContent = 'Location not specified';
             locationsDiv.appendChild(locSpan);
         }
-    
+   
         element.style.cursor = 'pointer';
         element.addEventListener('click', () => {
             document.querySelectorAll('.job-listing.selected').forEach(el => {
@@ -405,7 +558,7 @@ const JobBoard = {
             element.classList.add('selected');
             this.showJobDetails(job);
         });
-    
+   
         return element;
     },
 
@@ -413,15 +566,15 @@ const JobBoard = {
         const detailContainer = document.getElementById('job-detail-container');
         const titleElement = detailContainer.querySelector('.job-detail-title');
         const contentElement = detailContainer.querySelector('.job-detail-content');
-    
+   
         titleElement.textContent = 'Loading...';
         contentElement.innerHTML = '<div class="loading-spinner"></div>';
         detailContainer.classList.add('job-detail-visible');
         document.querySelector('.job-board-container').classList.add('show-detail');
-    
+   
         console.log("Job Data:", job); // Debugging line
         console.log("Job URL:", job.job_url); // Debugging line
-    
+   
         try {
             const locationsHTML = job.production_job_locations && job.production_job_locations.length > 0
                 ? job.production_job_locations
@@ -429,17 +582,17 @@ const JobBoard = {
                     .map(loc => `<p>${loc.structured_locations.formatted_address}</p>`)
                     .join('')
                 : '<p>Location not specified</p>';
-    
+   
             // Clear previous content
             titleElement.innerHTML = '';
-    
+   
             // Create title text element
             const titleText = document.createElement('span');
             titleText.textContent = job.title;
-    
+   
             // Append title
             titleElement.appendChild(titleText);
-    
+   
             // Check if job has a URL and create an Apply button
             if (job.job_url) {
                 const applyButton = document.createElement('a');
@@ -447,17 +600,17 @@ const JobBoard = {
                 applyButton.target = '_blank';
                 applyButton.className = 'apply-button';
                 applyButton.textContent = 'Apply Now';
-    
+   
                 // Append the button next to the title
                 titleElement.appendChild(applyButton);
             }
-    
+   
             // Format compensation if it exists
             let compensationHTML = '';
             if (job.processed_comp) {
                 const formatValue = (value) => job.comp_frequency === 'yearly' 
                     ? `$${Math.round(value/1000)}k` 
-                    : `$${value}/hr`;
+                    : `$${value}`;
                     
                 compensationHTML = `
                     <div class="job-compensation-detail">
@@ -471,7 +624,7 @@ const JobBoard = {
                         </span>
                     </div>`;
             }
-    
+
             const contentHTML = `
                 <div class="job-company-header">
                     ${
@@ -509,8 +662,8 @@ const JobBoard = {
             </div>`;
         }
     },
-    
-
+   
+   
     /*******************************************************
      * Utility Functions
      *******************************************************/
@@ -562,10 +715,10 @@ const JobBoard = {
 
         // Set up filters
         this.setupFilters();
-
+        
         // Set up compensation filters
         this.setupCompensationFilters();
-        
+
         // Set up detail view close button
         const closeButton = document.querySelector('.job-detail-close');
         if (closeButton) {
