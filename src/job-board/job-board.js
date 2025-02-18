@@ -742,7 +742,7 @@ updateFilterViewDisplay() {
         const resultsCounter = document.getElementById('results-counter');
         if (resultsCounter) {
             resultsCounter.textContent = `${this.state.totalResults} ${
-                this.state.totalResults === 1 ? 'job' : 'jobs'
+                this.state.totalResults === 1 ? 'job' : 'jobers'
             } found`;
         }
     },
