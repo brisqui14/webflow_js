@@ -306,63 +306,47 @@ const JobBoard = {
             }
 
             // Compensation filters
-            const compFilters = this.state.filters.compensation;
-            const minSalary = compFilters.minSalary;
-            const minHourly = compFilters.minHourly;
-            const includeUndefined = compFilters.includeUndefined;
+    const compFilters = this.state.filters.compensation;
+    const minSalary = compFilters.minSalary;
+    const minHourly = compFilters.minHourly;
+    const includeUndefined = compFilters.includeUndefined;
 
-            // Apply compensation filtering
-            const hasCompFilters = (minSalary !== null && minSalary !== undefined) || 
-            (minHourly !== null && minHourly !== undefined);
+    // Apply compensation filtering
+    const hasCompFilters = (minSalary !== null && minSalary !== undefined) || 
+                           (minHourly !== null && minHourly !== undefined);
 
-            // Log the raw jobs data for some sample records to debug compensation fields
-            if (!includeUndefined) {
-            const sampleJobs = jobs.slice(0, 3);
-            console.log("Sample jobs to debug compensation fields:", sampleJobs.map(job => ({
-            job_id: job.job_id,
-            processed_comp: job.processed_comp,
-            comp_frequency: job.comp_frequency,
-            comp_min_value: job.comp_min_value,
-            comp_max_value: job.comp_max_value
-            })));
-            }
+    if (hasCompFilters) {
+      console.log('Filtering by compensation minimums:', compFilters);
+      filteredData = filteredData.filter(job => {
+        // Handle undefined compensation
+        if (!job.processed_comp || !job.comp_frequency) {
+          return includeUndefined;
+        }
 
-            if (hasCompFilters) {
-            console.log('Filtering by compensation minimums:', compFilters);
-            filteredData = filteredData.filter(job => {
-            // Handle undefined compensation
-            if (!job.processed_comp || !job.comp_frequency) {
-            return includeUndefined;
-            }
+        // Handle minimum filtering - only apply if values are provided
+        if (job.comp_frequency === 'yearly' && minSalary !== null && minSalary !== undefined) {
+          return job.comp_min_value >= minSalary;
+        }
 
-            // Handle minimum filtering - only apply if values are provided
-            if (job.comp_frequency === 'yearly' && minSalary !== null && minSalary !== undefined) {
-            return job.comp_min_value >= minSalary;
-            }
+        if (job.comp_frequency === 'hourly' && minHourly !== null && minHourly !== undefined) {
+          return job.comp_min_value >= minHourly;
+        }
 
-            if (job.comp_frequency === 'hourly' && minHourly !== null && minHourly !== undefined) {
-            return job.comp_min_value >= minHourly;
-            }
+        return true;
+      });
+    } 
 
-            return true;
-            });
-            } else if (!includeUndefined) {
-            // If not including undefined compensation, keep only jobs with defined compensation
-            console.log('Filtering out jobs with undefined compensation');
-
-            // More lenient check for compensation being defined
-            filteredData = filteredData.filter(job => {
-            // Consider job as having compensation if ANY of these conditions are true:
-            return (
-            // Either has valid enum type for processed_comp ('fixed' or 'range')
-            (job.processed_comp !== null && job.processed_comp !== undefined) ||
-            // Or has valid compensation frequency
-            (job.comp_frequency !== null && job.comp_frequency !== undefined) ||
-            // Or has valid min/max values
-            (job.comp_min_value !== null && job.comp_min_value !== undefined)
-            );
-            });
-            }
+    // Always filter out undefined compensation if includeUndefined is false
+    if (!includeUndefined) {
+      console.log('Filtering out jobs with undefined compensation');
+      filteredData = filteredData.filter(job => {
+        return (
+          (job.processed_comp !== null && job.processed_comp !== undefined) && 
+          (job.comp_frequency !== null && job.comp_frequency !== undefined) &&
+          (job.comp_min_value !== null && job.comp_min_value !== undefined)
+        );
+      });
+    }
    
             // Update results count
             this.state.totalResults = filteredData.length;
