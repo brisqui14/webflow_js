@@ -231,14 +231,12 @@ const JobBoard = {
             editButton.style.display = 'block';
             updateDisplay();
             updateSlider();
-            that.refreshJobs();
         });
         
         applyButton.addEventListener('click', () => {
             filterState.active = true;
             editor.style.display = 'none';
             editButton.style.display = 'block';
-            that.refreshJobs();
         });
         
         updateDisplay();
@@ -317,7 +315,6 @@ const JobBoard = {
                 hourlyOnlyCheckbox.checked = false;
                 this.state.filters.compensation.hourlyOnly = false;
             }
-            this.refreshJobs();
         });
     }
 
@@ -328,7 +325,6 @@ const JobBoard = {
                 salaryOnlyCheckbox.checked = false;
                 this.state.filters.compensation.salaryOnly = false;
             }
-            this.refreshJobs();
         });
     }
 
@@ -336,7 +332,6 @@ const JobBoard = {
         this.state.filters.compensation.includeUndefined = includeUndefinedPayCheckbox.checked;
         includeUndefinedPayCheckbox.addEventListener('change', (e) => {
             this.state.filters.compensation.includeUndefined = e.target.checked;
-            this.refreshJobs();
         });
     }
 
