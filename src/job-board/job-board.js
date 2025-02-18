@@ -43,10 +43,15 @@ const JobBoard = {
     },
 
     // Updates all the view-only fields based on current filter state
-    updateFilterViewDisplay() {
+updateFilterViewDisplay() {
+    try {
         // Title
-        const titleValue = document.getElementById('search_input').value.trim();
-        document.getElementById('title-view').textContent = titleValue || 'N/A';
+        const titleElement = document.getElementById('title-view');
+        if (titleElement) {
+            const titleInput = document.getElementById('search_input');
+            const titleValue = titleInput ? titleInput.value.trim() : '';
+            titleElement.textContent = titleValue || 'N/A';
+        }
 
         // Employment Types
         this.updateCheckboxGroupView(
@@ -63,45 +68,79 @@ const JobBoard = {
         );
 
         // Location
-        const locationValue = document.getElementById('location_search_input').value.trim();
-        document.getElementById('loc-view').textContent = locationValue || 'N/A';
+        const locationElement = document.getElementById('loc-view');
+        if (locationElement) {
+            const locationInput = document.getElementById('location_search_input');
+            const locationValue = locationInput ? locationInput.value.trim() : '';
+            locationElement.textContent = locationValue || 'N/A';
+        }
 
         // Radius (only show if location is defined)
-        const radiusSelect = document.getElementById('radius_select');
         const radiusView = document.getElementById('rad-view');
-        if (locationValue) {
-            const selectedRadius = radiusSelect.options[radiusSelect.selectedIndex].text;
-            radiusView.textContent = selectedRadius;
-            radiusView.parentElement.style.display = 'block';
-        } else {
-            radiusView.parentElement.style.display = 'none';
+        if (radiusView) {
+            const locationInput = document.getElementById('location_search_input');
+            const locationValue = locationInput ? locationInput.value.trim() : '';
+            const radiusSelect = document.getElementById('radius_select');
+            
+            if (locationValue && radiusSelect && radiusSelect.options.length > 0) {
+                const selectedOption = radiusSelect.options[radiusSelect.selectedIndex];
+                const selectedRadius = selectedOption ? selectedOption.text : 'Within 25 miles';
+                radiusView.textContent = selectedRadius;
+                
+                // Only try to access parentElement if it exists
+                if (radiusView.parentElement) {
+                    radiusView.parentElement.style.display = 'block';
+                }
+            } else if (radiusView.parentElement) {
+                radiusView.parentElement.style.display = 'none';
+            }
         }
 
         // Minimum Salary
-        const minSalaryValue = document.getElementById('min-salary-input').value.trim();
-        document.getElementById('mins-view').textContent = minSalaryValue 
-            ? `$${parseInt(minSalaryValue).toLocaleString()}/year` 
-            : 'N/A';
+        const minSalaryView = document.getElementById('mins-view');
+        if (minSalaryView) {
+            const minSalaryInput = document.getElementById('min-salary-input');
+            const minSalaryValue = minSalaryInput ? minSalaryInput.value.trim() : '';
+            minSalaryView.textContent = minSalaryValue 
+                ? `$${parseInt(minSalaryValue).toLocaleString()}/year` 
+                : 'N/A';
+        }
 
         // Minimum Hourly
-        const minHourlyValue = document.getElementById('min-hourly-input').value.trim();
-        document.getElementById('minh-view').textContent = minHourlyValue 
-            ? `$${minHourlyValue}/hour` 
-            : 'N/A';
+        const minHourlyView = document.getElementById('minh-view');
+        if (minHourlyView) {
+            const minHourlyInput = document.getElementById('min-hourly-input');
+            const minHourlyValue = minHourlyInput ? minHourlyInput.value.trim() : '';
+            minHourlyView.textContent = minHourlyValue 
+                ? `$${minHourlyValue}/hour` 
+                : 'N/A';
+        }
 
         // Include Jobs with Undefined Pay
-        const includeUndefinedPay = document.getElementById('coijcb').checked;
-        document.getElementById('inccb-view').textContent = includeUndefinedPay ? 'Yes' : 'No';
+        const includeUndefinedView = document.getElementById('inccb-view');
+        if (includeUndefinedView) {
+            const includeUndefinedCheckbox = document.getElementById('coijcb');
+            const includeUndefinedPay = includeUndefinedCheckbox ? includeUndefinedCheckbox.checked : true;
+            includeUndefinedView.textContent = includeUndefinedPay ? 'Yes' : 'No';
+        }
 
         // Posted Date
-        const ageSelect = document.getElementById('age');
-        if (ageSelect) {
-            const selectedAge = ageSelect.options[ageSelect.selectedIndex].text;
-            document.getElementById('age-view').textContent = selectedAge;
-        } else {
-            document.getElementById('age-view').textContent = 'Any Time';
+        const postedDateView = document.getElementById('age-view');
+        if (postedDateView) {
+            const ageSelect = document.getElementById('age');
+            if (ageSelect && ageSelect.options && ageSelect.options.length > 0) {
+                const selectedOption = ageSelect.options[ageSelect.selectedIndex];
+                postedDateView.textContent = selectedOption ? selectedOption.text : 'Any Time';
+            } else {
+                postedDateView.textContent = 'Any Time';
+            }
         }
-    },
+    } catch (error) {
+        console.error('Error updating filter view display:', error);
+        // Continue execution despite errors - don't let view updates
+        // block the state transition
+    }
+},
 
     // Helper method to update checkbox group displays
     updateCheckboxGroupView(ids, labels, viewElementId) {
