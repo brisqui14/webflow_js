@@ -200,158 +200,216 @@ const JobBoard = {
      * Job Fetching and Filtering
      *******************************************************/
     async fetchJobs() {
+        // Prevent simultaneous requests or loading past the final page.
         if (this.state.isLoading || !this.state.hasMore) return;
         this.state.isLoading = true;
-   
+    
+        // Define the full set of possible values for each filter group
+        // so we can detect "all selected" vs. "none" vs. partial.
+        const allLocationTypes = ['On-Site', 'Remote', 'Hybrid', 'Not Specified'];
+        const allWorkTypes = [
+            'Full-Time',
+            'Part-Time',
+            'Contract',
+            'Seasonal',
+            'Learning Experience Opportunity',
+            'Not Specified'
+        ];
+    
+        // Get what's currently selected in state
+        const selectedLocationTypes = this.state.filters.locationTypes || [];
+        const selectedWorkTypes = this.state.filters.workTypes || [];
+    
+        // Determine the final “filter arrays” based on all/none/partial logic
+        let locationTypeFilter;
+        if (selectedLocationTypes.length === 0) {
+            // None selected => no results
+            locationTypeFilter = [];
+        } else if (selectedLocationTypes.length === allLocationTypes.length) {
+            // All selected => skip location filter
+            locationTypeFilter = null;
+        } else {
+            // Partial => filter by the selected values
+            locationTypeFilter = selectedLocationTypes;
+        }
+    
+        let workTypeFilter;
+        if (selectedWorkTypes.length === 0) {
+            // None selected => no results
+            workTypeFilter = [];
+        } else if (selectedWorkTypes.length === allWorkTypes.length) {
+            // All selected => skip employment filter
+            workTypeFilter = null;
+        } else {
+            // Partial => filter by the selected values
+            workTypeFilter = selectedWorkTypes;
+        }
+    
         try {
             let jobs;
-            if (this.state.filters.selectedPlaceId) {
-                console.log('Using radius-based search with place_id:', this.state.filters.selectedPlaceId);
-                // Use radius-based search
-                const { data, error } = await window.supabase
-                    .rpc('search_jobs_by_radius', {
-                        center_place_id: this.state.filters.selectedPlaceId,
-                        radius_miles: this.state.filters.radiusMiles,
-                        title_search: this.state.filters.title || null,
-                        location_type_filter: this.state.filters.locationTypes.length > 0
-                            ? this.state.filters.locationTypes
-                            : null
-                    });
-   
-                if (error) throw error;
-                jobs = data;
-                console.log('Radius search results:', jobs?.length || 0, 'jobs found');
-   
+    
+            // If either filter is an empty array, we already know results are zero
+            if (
+                (Array.isArray(locationTypeFilter) && locationTypeFilter.length === 0) ||
+                (Array.isArray(workTypeFilter) && workTypeFilter.length === 0)
+            ) {
+                console.log('No results: locationTypeFilter or workTypeFilter is empty.');
+                jobs = [];
             } else {
-                // Standard search or location text search
-                console.log('Using standard search with filters:', {
-                    title: this.state.filters.title,
-                    location: this.state.filters.location,
-                    locationTypes: this.state.filters.locationTypes,
-                    workTypes: this.state.filters.workTypes,
-                    compensation: this.state.filters.compensation
-                });
-   
-                let data, error;
-   
-                if (this.state.filters.location && !this.state.filters.selectedPlaceId) {
-                    console.log('Using location text search for:', this.state.filters.location);
-                    // Use the new RPC function for location text search
-                    ({ data, error } = await window.supabase
-                        .rpc('search_jobs_by_location_text', {
-                            location_text: this.state.filters.location,
+                // Proceed with existing DB logic
+    
+                if (this.state.filters.selectedPlaceId) {
+                    // Radius-based search
+                    console.log('Using radius-based search with place_id:', this.state.filters.selectedPlaceId);
+                    const { data, error } = await window.supabase
+                        .rpc('search_jobs_by_radius', {
+                            center_place_id: this.state.filters.selectedPlaceId,
+                            radius_miles: this.state.filters.radiusMiles,
                             title_search: this.state.filters.title || null,
-                            location_type_filter: this.state.filters.locationTypes.length > 0
-                                ? this.state.filters.locationTypes
-                                : null
-                        }));
+                            // Pass locationTypeFilter (if null => no filter, if array => filter).
+                            location_type_filter: locationTypeFilter
+                            // If your DB RPC also supports a work type filter param, add it here
+                        });
+    
+                    if (error) throw error;
+                    jobs = data;
+                    console.log('Radius search results:', jobs?.length || 0, 'jobs found');
+    
                 } else {
-                    // Standard search without location filter
-                    ({ data, error } = await window.supabase
-                        .from('production_jobs')
-                        .select(`
-                            job_id,
-                            title,
-                            description,
-                            job_url,
-                            processed_location_types,
-                            processed_work_types,
-                            processed_comp,
-                            comp_frequency,
-                            comp_min_value,
-                            comp_max_value,
-                            production_companies (
-                                company_id,
-                                name,
-                                company_url,
-                                logo_url
-                            ),
-                            production_job_locations!production_job_locations_job_fkey (
-                                is_primary,
-                                place_id,
-                                structured_locations (
+                    // Standard search or location text search
+                    console.log('Using standard search with filters:', {
+                        title: this.state.filters.title,
+                        location: this.state.filters.location,
+                        locationTypes: this.state.filters.locationTypes,
+                        workTypes: this.state.filters.workTypes,
+                        compensation: this.state.filters.compensation
+                    });
+    
+                    let data, error;
+                    if (this.state.filters.location && !this.state.filters.selectedPlaceId) {
+                        // Use new RPC for location text search
+                        console.log('Using location text search for:', this.state.filters.location);
+                        ({ data, error } = await window.supabase
+                            .rpc('search_jobs_by_location_text', {
+                                location_text: this.state.filters.location,
+                                title_search: this.state.filters.title || null,
+                                location_type_filter: locationTypeFilter
+                                // If your RPC also accepts a workTypeFilter, pass it here
+                            }));
+                    } else {
+                        // Standard search without location constraints
+                        ({ data, error } = await window.supabase
+                            .from('production_jobs')
+                            .select(`
+                                job_id,
+                                title,
+                                description,
+                                job_url,
+                                processed_location_types,
+                                processed_work_types,
+                                processed_comp,
+                                comp_frequency,
+                                comp_min_value,
+                                comp_max_value,
+                                production_companies (
+                                    company_id,
+                                    name,
+                                    company_url,
+                                    logo_url
+                                ),
+                                production_job_locations!production_job_locations_job_fkey (
+                                    is_primary,
                                     place_id,
-                                    formatted_address
+                                    structured_locations (
+                                        place_id,
+                                        formatted_address
+                                    )
                                 )
-                            )
-                        `)
-                        .order('created_at', { ascending: false })
-                        .ilike('title', this.state.filters.title ? `%${this.state.filters.title}%` : '%'));
+                            `)
+                            .order('created_at', { ascending: false })
+                            .ilike('title', this.state.filters.title ? `%${this.state.filters.title}%` : '%'));
+                    }
+                    if (error) throw error;
+                    jobs = data;
+                    console.log('Standard search results:', jobs?.length || 0, 'jobs found');
                 }
-   
-                if (error) throw error;
-                jobs = data;
-                console.log('Standard search results:', jobs?.length || 0, 'jobs found');
             }
-   
-            // Apply filters
+    
+            // Front-end filtering (if needed) -- if your DB logic already filters, adjust accordingly.
             let filteredData = jobs || [];
-           
-            if (this.state.filters.locationTypes.length > 0) {
-                console.log('Filtering by location types:', this.state.filters.locationTypes);
+    
+            // Location Types filter
+            // locationTypeFilter === null => skip filtering
+            // locationTypeFilter is an array => do partial filtering
+            if (Array.isArray(locationTypeFilter) && locationTypeFilter.length > 0) {
+                console.log('Filtering by location types:', locationTypeFilter);
                 filteredData = filteredData.filter(job =>
-                    job.processed_location_types?.some(type =>
-                        this.state.filters.locationTypes.includes(type)
-                    )
+                    job.processed_location_types?.some(type => locationTypeFilter.includes(type))
                 );
             }
-   
-            if (this.state.filters.workTypes.length > 0) {
-                console.log('Filtering by work types:', this.state.filters.workTypes);
+    
+            // Work Types filter
+            // workTypeFilter === null => skip filtering
+            // workTypeFilter is an array => do partial filtering
+            if (Array.isArray(workTypeFilter) && workTypeFilter.length > 0) {
+                console.log('Filtering by work types:', workTypeFilter);
                 filteredData = filteredData.filter(job =>
-                    job.processed_work_types?.some(type =>
-                        this.state.filters.workTypes.includes(type)
-                    )
+                    job.processed_work_types?.some(type => workTypeFilter.includes(type))
                 );
             }
-
+    
             // Compensation filters
-    const compFilters = this.state.filters.compensation;
-    const minSalary = compFilters.minSalary;
-    const minHourly = compFilters.minHourly;
-    const includeUndefined = compFilters.includeUndefined;
-
-    // Apply compensation filtering
-    const hasCompFilters = (minSalary !== null && minSalary !== undefined) || 
-                           (minHourly !== null && minHourly !== undefined);
-
-    if (hasCompFilters) {
-      console.log('Filtering by compensation minimums:', compFilters);
-      filteredData = filteredData.filter(job => {
-        // Handle undefined compensation
-        if (!job.processed_comp || !job.comp_frequency) {
-          return includeUndefined;
-        }
-
-        // Handle minimum filtering - only apply if values are provided
-        if (job.comp_frequency === 'yearly' && minSalary !== null && minSalary !== undefined) {
-          return job.comp_min_value >= minSalary;
-        }
-
-        if (job.comp_frequency === 'hourly' && minHourly !== null && minHourly !== undefined) {
-          return job.comp_min_value >= minHourly;
-        }
-
-        return true;
-      });
-    } 
-
-    // Always filter out undefined compensation if includeUndefined is false
-    if (!includeUndefined) {
-      console.log('Filtering out jobs with undefined compensation');
-      filteredData = filteredData.filter(job => {
-        return (
-          (job.processed_comp !== null && job.processed_comp !== undefined) && 
-          (job.comp_frequency !== null && job.comp_frequency !== undefined) &&
-          (job.comp_min_value !== null && job.comp_min_value !== undefined)
-        );
-      });
-    }
-   
-            // Update results count
+            const compFilters = this.state.filters.compensation;
+            const minSalary = compFilters.minSalary;
+            const minHourly = compFilters.minHourly;
+            const includeUndefined = compFilters.includeUndefined;
+    
+            // Check whether user has set any min pay filters
+            const hasCompFilters = (minSalary !== null && minSalary !== undefined) ||
+                                   (minHourly !== null && minHourly !== undefined);
+    
+            if (hasCompFilters) {
+                console.log('Filtering by compensation minimums:', compFilters);
+                filteredData = filteredData.filter(job => {
+                    // If job has no comp info
+                    if (!job.processed_comp || !job.comp_frequency) {
+                        return includeUndefined;
+                    }
+    
+                    // If job is yearly & user set a minSalary
+                    if (job.comp_frequency === 'yearly' && minSalary !== null && minSalary !== undefined) {
+                        return job.comp_min_value >= minSalary;
+                    }
+    
+                    // If job is hourly & user set a minHourly
+                    if (job.comp_frequency === 'hourly' && minHourly !== null && minHourly !== undefined) {
+                        return job.comp_min_value >= minHourly;
+                    }
+    
+                    // If none of the above conditions matched, pass it through
+                    return true;
+                });
+            }
+    
+            // If includeUndefined = false, remove jobs that don’t have compensation data
+            if (!includeUndefined) {
+                console.log('Filtering out jobs with undefined compensation');
+                filteredData = filteredData.filter(job => {
+                    return (
+                        job.processed_comp !== null &&
+                        job.processed_comp !== undefined &&
+                        job.comp_frequency !== null &&
+                        job.comp_frequency !== undefined &&
+                        job.comp_min_value !== null &&
+                        job.comp_min_value !== undefined
+                    );
+                });
+            }
+    
+            // Update count
             this.state.totalResults = filteredData.length;
             this.updateResultsCount();
-   
+    
             // Clear existing listings
             const jobsContainer = document.querySelector('#job-listings-container');
             const template = jobsContainer.querySelector('.job-listing');
@@ -361,23 +419,26 @@ const JobBoard = {
             while (jobsContainer.children.length > 1) {
                 jobsContainer.removeChild(jobsContainer.lastChild);
             }
-   
-            // Render jobs
+    
+            // Render the filtered jobs
             console.log('Rendering', filteredData.length, 'jobs after all filters');
             for (const job of filteredData) {
                 const jobElement = await this.createJobElement(job);
                 jobsContainer.appendChild(jobElement);
             }
-   
+    
+            // We’ve rendered all possible results, so no more to load
             this.state.hasMore = false;
+    
         } catch (err) {
             console.error('Error loading jobs:', err);
             this.state.totalResults = 0;
             this.updateResultsCount();
         } finally {
+            // Always stop the loading spinner
             this.state.isLoading = false;
         }
-    },
+    },    
 
     updateResultsCount() {
         const resultsCounter = document.getElementById('results-counter');
