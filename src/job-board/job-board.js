@@ -22,7 +22,10 @@ const JobBoard = {
                     min: 15,
                     max: 100,
                     active: false
-                }
+                },
+                salaryOnly: false,
+                hourlyOnly: false,
+                includeUndefined: true
             }
         },
     },
@@ -302,6 +305,41 @@ const JobBoard = {
             });
         }
 
+        // Compensation checkbox filters
+    const salaryOnlyCheckbox = document.getElementById('salary-only-checkbox');
+    const hourlyOnlyCheckbox = document.getElementById('hourly-only-checkbox');
+    const includeUndefinedPayCheckbox = document.getElementById('coijcb');
+
+    if (salaryOnlyCheckbox) {
+        salaryOnlyCheckbox.addEventListener('change', (e) => {
+            this.state.filters.compensation.salaryOnly = e.target.checked;
+            if (e.target.checked && hourlyOnlyCheckbox && hourlyOnlyCheckbox.checked) {
+                hourlyOnlyCheckbox.checked = false;
+                this.state.filters.compensation.hourlyOnly = false;
+            }
+            this.refreshJobs();
+        });
+    }
+
+    if (hourlyOnlyCheckbox) {
+        hourlyOnlyCheckbox.addEventListener('change', (e) => {
+            this.state.filters.compensation.hourlyOnly = e.target.checked;
+            if (e.target.checked && salaryOnlyCheckbox && salaryOnlyCheckbox.checked) {
+                salaryOnlyCheckbox.checked = false;
+                this.state.filters.compensation.salaryOnly = false;
+            }
+            this.refreshJobs();
+        });
+    }
+
+    if (includeUndefinedPayCheckbox) {
+        this.state.filters.compensation.includeUndefined = includeUndefinedPayCheckbox.checked;
+        includeUndefinedPayCheckbox.addEventListener('change', (e) => {
+            this.state.filters.compensation.includeUndefined = e.target.checked;
+            this.refreshJobs();
+        });
+    }
+
         // Search button
         const searchButton = document.getElementById('search_button');
         if (searchButton) {
@@ -327,7 +365,7 @@ const JobBoard = {
     async fetchJobs() {
         if (this.state.isLoading || !this.state.hasMore) return;
         this.state.isLoading = true;
-   
+       
         try {
             let jobs;
             if (this.state.filters.selectedPlaceId) {
@@ -342,11 +380,11 @@ const JobBoard = {
                             ? this.state.filters.locationTypes
                             : null
                     });
-   
+       
                 if (error) throw error;
                 jobs = data;
                 console.log('Radius search results:', jobs?.length || 0, 'jobs found');
-   
+       
             } else {
                 // Standard search or location text search
                 console.log('Using standard search with filters:', {
@@ -356,9 +394,9 @@ const JobBoard = {
                     workTypes: this.state.filters.workTypes,
                     compensation: this.state.filters.compensation
                 });
-   
+       
                 let data, error;
-   
+       
                 if (this.state.filters.location && !this.state.filters.selectedPlaceId) {
                     console.log('Using location text search for:', this.state.filters.location);
                     // Use the new RPC function for location text search
@@ -403,15 +441,15 @@ const JobBoard = {
                         .order('created_at', { ascending: false })
                         .ilike('title', this.state.filters.title ? `%${this.state.filters.title}%` : '%'));
                 }
-   
+       
                 if (error) throw error;
                 jobs = data;
                 console.log('Standard search results:', jobs?.length || 0, 'jobs found');
             }
-   
+       
             // Apply filters
             let filteredData = jobs || [];
-           
+               
             if (this.state.filters.locationTypes.length > 0) {
                 console.log('Filtering by location types:', this.state.filters.locationTypes);
                 filteredData = filteredData.filter(job =>
@@ -420,7 +458,7 @@ const JobBoard = {
                     )
                 );
             }
-   
+       
             if (this.state.filters.workTypes.length > 0) {
                 console.log('Filtering by work types:', this.state.filters.workTypes);
                 filteredData = filteredData.filter(job =>
@@ -429,34 +467,49 @@ const JobBoard = {
                     )
                 );
             }
-
+    
             // Compensation filters
-            const salaryFilter = this.state.filters.compensation.salary;
-            const hourlyFilter = this.state.filters.compensation.hourly;
-            
-            if (salaryFilter.active || hourlyFilter.active) {
-                console.log('Filtering by compensation:', this.state.filters.compensation);
+            const compFilters = this.state.filters.compensation;
+            const salaryFilter = compFilters.salary;
+            const hourlyFilter = compFilters.hourly;
+            const salaryOnly = compFilters.salaryOnly;
+            const hourlyOnly = compFilters.hourlyOnly;
+            const includeUndefined = compFilters.includeUndefined;
+    
+            if (salaryFilter.active || hourlyFilter.active || salaryOnly || hourlyOnly) {
+                console.log('Filtering by compensation:', compFilters);
                 filteredData = filteredData.filter(job => {
-                    if (!job.processed_comp || !job.comp_frequency) return false;
+                    // Handle undefined compensation
+                    if (!job.processed_comp || !job.comp_frequency) {
+                        return includeUndefined;
+                    }
                     
+                    // Handle frequency filtering
+                    if (salaryOnly && job.comp_frequency !== 'yearly') return false;
+                    if (hourlyOnly && job.comp_frequency !== 'hourly') return false;
+                    
+                    // Handle range filtering
                     if (job.comp_frequency === 'yearly' && salaryFilter.active) {
                         return job.comp_min_value >= salaryFilter.min && 
-                               job.comp_max_value <= salaryFilter.max;
+                              job.comp_max_value <= salaryFilter.max;
                     }
                     
                     if (job.comp_frequency === 'hourly' && hourlyFilter.active) {
                         return job.comp_min_value >= hourlyFilter.min && 
-                               job.comp_max_value <= hourlyFilter.max;
+                              job.comp_max_value <= hourlyFilter.max;
                     }
                     
-                    return false;
+                    return true;
                 });
+            } else if (!includeUndefined) {
+                // If no other compensation filters but we should exclude undefined
+                filteredData = filteredData.filter(job => job.processed_comp && job.comp_frequency);
             }
-   
+       
             // Update results count
             this.state.totalResults = filteredData.length;
             this.updateResultsCount();
-   
+       
             // Clear existing listings
             const jobsContainer = document.querySelector('#job-listings-container');
             const template = jobsContainer.querySelector('.job-listing');
@@ -466,14 +519,14 @@ const JobBoard = {
             while (jobsContainer.children.length > 1) {
                 jobsContainer.removeChild(jobsContainer.lastChild);
             }
-   
+       
             // Render jobs
             console.log('Rendering', filteredData.length, 'jobs after all filters');
             for (const job of filteredData) {
                 const jobElement = await this.createJobElement(job);
                 jobsContainer.appendChild(jobElement);
             }
-   
+       
             this.state.hasMore = false;
         } catch (err) {
             console.error('Error loading jobs:', err);
