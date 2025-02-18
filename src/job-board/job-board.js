@@ -30,6 +30,12 @@ const JobBoard = {
         this.state.currentState = 'stateA';
         document.getElementById('filter-edit').style.display = 'block';
         document.getElementById('filter-view').style.display = 'none';
+        
+        // Reset heights when going back to State A
+        this.resetResultsHeight();
+        
+        // Remove resize listener
+        window.removeEventListener('resize', this._resizeHandler);
     },
 
 
@@ -42,6 +48,56 @@ const JobBoard = {
         this.state.currentState = 'stateB';
         document.getElementById('filter-edit').style.display = 'none';
         document.getElementById('filter-view').style.display = 'block';
+        
+        // Adjust heights after DOM update
+        setTimeout(() => this.adjustResultsHeight(), 50);
+        
+        // Add resize handler
+        this._resizeHandler = () => this.adjustResultsHeight();
+        window.addEventListener('resize', this._resizeHandler);
+    },
+
+
+    // Adjust heights of result containers to prevent nested scrolling
+    adjustResultsHeight() {
+        // Only apply in State B
+        if (this.state.currentState !== 'stateB') return;
+        
+        // Get elements
+        const filterView = document.getElementById('filter-view');
+        const jobBoardContainer = document.querySelector('.job-board-container');
+        const jobListingsContainer = document.getElementById('job-listings-container');
+        const jobDetailContainer = document.getElementById('job-detail-container');
+        
+        // Measure available space
+        const viewportHeight = window.innerHeight;
+        const filterHeight = filterView.offsetHeight;
+        const availableHeight = viewportHeight - filterHeight - 20; // 20px buffer
+        
+        // Set max-heights
+        jobListingsContainer.style.maxHeight = `${availableHeight}px`;
+        jobListingsContainer.style.overflowY = 'auto';
+        
+        jobDetailContainer.style.maxHeight = `${availableHeight}px`;
+        jobDetailContainer.style.overflowY = 'auto';
+        
+        // Lock main container
+        jobBoardContainer.style.overflow = 'hidden';
+    },
+    
+    // Reset height constraints
+    resetResultsHeight() {
+        const jobListingsContainer = document.getElementById('job-listings-container');
+        const jobDetailContainer = document.getElementById('job-detail-container');
+        const jobBoardContainer = document.querySelector('.job-board-container');
+        
+        jobListingsContainer.style.maxHeight = '';
+        jobListingsContainer.style.overflowY = '';
+        
+        jobDetailContainer.style.maxHeight = '';
+        jobDetailContainer.style.overflowY = '';
+        
+        jobBoardContainer.style.overflow = '';
     },
 
 
@@ -726,6 +782,11 @@ updateFilterViewDisplay() {
    
             // We've rendered all possible results, so no more to load
             this.state.hasMore = false;
+            
+            // Ensure heights are properly adjusted after loading results
+            if (this.state.currentState === 'stateB') {
+                setTimeout(() => this.adjustResultsHeight(), 100);
+            }
    
         } catch (err) {
             console.error('Error loading jobs:', err);
@@ -742,7 +803,7 @@ updateFilterViewDisplay() {
         const resultsCounter = document.getElementById('results-counter');
         if (resultsCounter) {
             resultsCounter.textContent = `${this.state.totalResults} ${
-                this.state.totalResults === 1 ? 'job' : 'jobers'
+                this.state.totalResults === 1 ? 'job' : 'jobs'
             } found`;
         }
     },
@@ -991,6 +1052,11 @@ updateFilterViewDisplay() {
                     .classList.remove('job-detail-visible');
                 document.querySelector('.job-board-container')
                     .classList.remove('show-detail');
+                    
+                // If we're in State B, recalculate heights after closing
+                if (this.state.currentState === 'stateB') {
+                    setTimeout(() => this.adjustResultsHeight(), 50);
+                }
             });
         }
        
@@ -998,9 +1064,45 @@ updateFilterViewDisplay() {
         this.ensureFilterViewStructure();
         this.setupStateTransitions();
         this.transitionToStateA(); // Start in State A
+        
+        // Add CSS for fixed height containers
+        this.addResultsContainerStyles();
+    },
+    
+    // Add necessary CSS directly via JavaScript
+    addResultsContainerStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Fixed height container styles */
+            .job-board-container {
+                position: relative;
+                height: 100vh;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            
+            /* State B specific styles */
+            #job-listings-container, 
+            #job-detail-container {
+                transition: max-height 0.3s ease, overflow 0.3s ease;
+            }
+            
+            /* In State B, ensure job detail header stays at top */
+            .job-detail-header {
+                position: sticky;
+                top: 0;
+                background: white;
+                z-index: 10;
+                padding-top: 16px;
+                margin: -16px -24px 0;
+                padding-left: 24px;
+                padding-right: 24px;
+            }
+        `;
+        document.head.appendChild(style);
     }
 };
 
 
 export default JobBoard;
-
