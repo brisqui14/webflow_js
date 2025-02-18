@@ -1,4 +1,4 @@
-export const CompensationFilter = {
+const CompensationFilter = {
     state: {
         salary: {
             min: 40000,
@@ -155,3 +155,6 @@ export const CompensationFilter = {
         updateSlider();
     }
 };
+
+export default CompensationFilter;
+
