@@ -787,12 +787,9 @@ updateFilterViewDisplay() {
         titleElement.textContent = 'Loading...';
         contentElement.innerHTML = '<div class="loading-spinner"></div>';
         
-        // ONLY add this class to control visibility - this matches your CSS pattern
+        // Only use the show-detail class on the container
         document.querySelector('.job-board-container').classList.add('show-detail');
        
-        console.log("Job Data:", job);
-        console.log("Job URL:", job.job_url);
-   
         try {
             const locationsHTML = job.production_job_locations && job.production_job_locations.length > 0
                 ? job.production_job_locations
@@ -800,17 +797,17 @@ updateFilterViewDisplay() {
                     .map(loc => `<p>${loc.structured_locations.formatted_address}</p>`)
                     .join('')
                 : '<p>Location not specified</p>';
-   
+       
             // Clear previous content
             titleElement.innerHTML = '';
-   
+       
             // Create title text element
             const titleText = document.createElement('span');
             titleText.textContent = job.title;
-   
+       
             // Append title
             titleElement.appendChild(titleText);
-   
+       
             // Check if job has a URL and create an Apply button
             if (job.job_url) {
                 const applyButton = document.createElement('a');
@@ -818,11 +815,11 @@ updateFilterViewDisplay() {
                 applyButton.target = '_blank';
                 applyButton.className = 'apply-button';
                 applyButton.textContent = 'Apply Now';
-   
+       
                 // Append the button next to the title
                 titleElement.appendChild(applyButton);
             }
-   
+       
             // Format compensation if it exists
             let compensationHTML = '';
             if (job.processed_comp) {
@@ -842,7 +839,7 @@ updateFilterViewDisplay() {
                         </span>
                     </div>`;
             }
-
+    
             const contentHTML = `
                 <div class="job-company-header">
                     ${
@@ -881,7 +878,6 @@ updateFilterViewDisplay() {
         }
     },
    
-   
     /*******************************************************
      * Utility Functions
      *******************************************************/
@@ -916,6 +912,10 @@ updateFilterViewDisplay() {
      * Initialization
      *******************************************************/
     init() {
+        // At the beginning of init, log the DOM structure
+        console.log("Job board container:", document.querySelector('.job-board-container'));
+        console.log("Detail container:", document.getElementById('job-detail-container'));
+        console.log("Parent of detail container:", document.getElementById('job-detail-container').parentNode);
         const jobsContainer = document.querySelector('#job-listings-container');
         if (!jobsContainer) {
             console.error('Job listings container not found');
@@ -931,7 +931,6 @@ updateFilterViewDisplay() {
         // Set up compensation filters
         this.setupCompensationFilters();
 
-        // Set up detail view close button
         // Set up detail view close button
         const closeButton = document.querySelector('.job-detail-close');
         if (closeButton) {
