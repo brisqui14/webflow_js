@@ -18,6 +18,206 @@ const JobBoard = {
                 includeUndefined: true
             }
         },
+        currentState: 'stateA', // Initialize to State A (search/edit mode)
+    },
+
+    /*******************************************************
+     * State Management
+     *******************************************************/
+    // Transition to State A (search/edit mode)
+    transitionToStateA() {
+        this.state.currentState = 'stateA';
+        document.getElementById('filter-edit').style.display = 'block';
+        document.getElementById('filter-view').style.display = 'none';
+    },
+
+    // Transition to State B (results/view mode)
+    transitionToStateB() {
+        // First update the view-only display
+        this.updateFilterViewDisplay();
+        
+        // Then switch visibility
+        this.state.currentState = 'stateB';
+        document.getElementById('filter-edit').style.display = 'none';
+        document.getElementById('filter-view').style.display = 'block';
+    },
+
+    // Updates all the view-only fields based on current filter state
+    updateFilterViewDisplay() {
+        // Title
+        const titleValue = document.getElementById('search_input').value.trim();
+        document.getElementById('title-view').textContent = titleValue || 'N/A';
+
+        // Employment Types
+        this.updateCheckboxGroupView(
+            ['etftcb', 'etptcb', 'etcocb', 'etsecb', 'etlecb', 'etnscb'],
+            ['Full-Time', 'Part-Time', 'Contract', 'Seasonal', 'Learning Experience Opportunity', 'Not Specified'],
+            'emp-view'
+        );
+
+        // Workplace Types
+        this.updateCheckboxGroupView(
+            ['wtoscb', 'wtrecb', 'wthycb', 'wtnscb'],
+            ['On-Site', 'Remote', 'Hybrid', 'Not Specified'],
+            'wkpl-view'
+        );
+
+        // Location
+        const locationValue = document.getElementById('location_search_input').value.trim();
+        document.getElementById('loc-view').textContent = locationValue || 'N/A';
+
+        // Radius (only show if location is defined)
+        const radiusSelect = document.getElementById('radius_select');
+        const radiusView = document.getElementById('rad-view');
+        if (locationValue) {
+            const selectedRadius = radiusSelect.options[radiusSelect.selectedIndex].text;
+            radiusView.textContent = selectedRadius;
+            radiusView.parentElement.style.display = 'block';
+        } else {
+            radiusView.parentElement.style.display = 'none';
+        }
+
+        // Minimum Salary
+        const minSalaryValue = document.getElementById('min-salary-input').value.trim();
+        document.getElementById('mins-view').textContent = minSalaryValue 
+            ? `$${parseInt(minSalaryValue).toLocaleString()}/year` 
+            : 'N/A';
+
+        // Minimum Hourly
+        const minHourlyValue = document.getElementById('min-hourly-input').value.trim();
+        document.getElementById('minh-view').textContent = minHourlyValue 
+            ? `$${minHourlyValue}/hour` 
+            : 'N/A';
+
+        // Include Jobs with Undefined Pay
+        const includeUndefinedPay = document.getElementById('coijcb').checked;
+        document.getElementById('inccb-view').textContent = includeUndefinedPay ? 'Yes' : 'No';
+
+        // Posted Date
+        const ageSelect = document.getElementById('age');
+        if (ageSelect) {
+            const selectedAge = ageSelect.options[ageSelect.selectedIndex].text;
+            document.getElementById('age-view').textContent = selectedAge;
+        } else {
+            document.getElementById('age-view').textContent = 'Any Time';
+        }
+    },
+
+    // Helper method to update checkbox group displays
+    updateCheckboxGroupView(ids, labels, viewElementId) {
+        const checkedValues = [];
+        ids.forEach((id, index) => {
+            if (document.getElementById(id).checked) {
+                checkedValues.push(labels[index]);
+            }
+        });
+
+        const viewElement = document.getElementById(viewElementId);
+        if (checkedValues.length === 0) {
+            // None selected
+            viewElement.textContent = 'None';
+        } else if (checkedValues.length === labels.length) {
+            // All selected
+            viewElement.textContent = 'All';
+        } else {
+            // Some selected
+            viewElement.textContent = checkedValues.join(', ');
+        }
+    },
+
+    // Setup event listeners for state transitions
+    setupStateTransitions() {
+        // Search button transitions from State A to State B
+        const searchButton = document.getElementById('search_button');
+        if (searchButton) {
+            searchButton.addEventListener('click', () => {
+                this.transitionToStateB();
+            });
+        }
+
+        // Clicking on filter-view transitions from State B to State A
+        const filterView = document.getElementById('filter-view');
+        if (filterView) {
+            filterView.addEventListener('click', (e) => {
+                // Only transition if clicking on the container itself or a filter item
+                // (not on the "Edit" button which has its own handler)
+                if (!e.target.classList.contains('edit-filters-btn')) {
+                    this.transitionToStateA();
+                }
+            });
+        }
+
+        // Add edit button in view mode
+        const editButton = document.querySelector('.edit-filters-btn');
+        if (editButton) {
+            editButton.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent the container click from firing
+                this.transitionToStateA();
+            });
+        }
+    },
+
+    // Ensure proper HTML structure for filter view
+    ensureFilterViewStructure() {
+        // Ensure filter-view has proper structure if not already set up
+        const filterView = document.getElementById('filter-view');
+        if (filterView && !filterView.querySelector('.filter-view-container')) {
+            // Create header
+            const header = document.createElement('div');
+            header.className = 'filter-header';
+            
+            const title = document.createElement('div');
+            title.className = 'filter-title';
+            title.textContent = 'Active Filters';
+            
+            const editButton = document.createElement('button');
+            editButton.className = 'edit-filters-btn';
+            editButton.textContent = 'Edit';
+            
+            header.appendChild(title);
+            header.appendChild(editButton);
+            
+            // Create container for filter items
+            const container = document.createElement('div');
+            container.className = 'filter-view-container';
+            
+            // Define all the filter fields
+            const filterFields = [
+                { id: 'title-view', label: 'Job Title' },
+                { id: 'emp-view', label: 'Employment Type' },
+                { id: 'wkpl-view', label: 'Workplace Type' },
+                { id: 'loc-view', label: 'Location' },
+                { id: 'rad-view', label: 'Within Miles' },
+                { id: 'mins-view', label: 'Min. Salary' },
+                { id: 'minh-view', label: 'Min. Hourly Rate' },
+                { id: 'inccb-view', label: 'Include Undefined Pay' },
+                { id: 'age-view', label: 'Posted Date' }
+            ];
+            
+            // Create each filter item
+            filterFields.forEach(field => {
+                const item = document.createElement('div');
+                item.className = 'filter-item';
+                
+                const label = document.createElement('div');
+                label.className = 'filter-label';
+                label.textContent = field.label;
+                
+                const value = document.createElement('div');
+                value.className = 'filter-value';
+                value.id = field.id;
+                value.textContent = 'N/A';
+                
+                item.appendChild(label);
+                item.appendChild(value);
+                container.appendChild(item);
+            });
+            
+            // Clear and append new structure
+            filterView.innerHTML = '';
+            filterView.appendChild(header);
+            filterView.appendChild(container);
+        }
     },
 
     /*******************************************************
@@ -120,98 +320,102 @@ const JobBoard = {
     /*******************************************************
      * Filter Setup
      *******************************************************/
-    /*******************************************************
- * Filter Setup
- *******************************************************/
-setupFilters() {
-    // 1. Clear or initialize these arrays so we can re-populate them
-    this.state.filters.locationTypes = [];
-    this.state.filters.workTypes = [];
+    setupFilters() {
+        // 1. Clear or initialize these arrays so we can re-populate them
+        this.state.filters.locationTypes = [];
+        this.state.filters.workTypes = [];
 
-    // 2. Location Type checkboxes
-    const locationTypeIds = ['wtoscb', 'wtrecb', 'wthycb', 'wtnscb'];
-    const locationTypeValues = ['On-Site', 'Remote', 'Hybrid', 'Not Specified'];
+        // 2. Location Type checkboxes
+        const locationTypeIds = ['wtoscb', 'wtrecb', 'wthycb', 'wtnscb'];
+        const locationTypeValues = ['On-Site', 'Remote', 'Hybrid', 'Not Specified'];
 
-    locationTypeIds.forEach((id, index) => {
-        const checkbox = document.getElementById(id);
-        if (checkbox) {
-            // If the box is already checked on page load, add it to the array
-            if (checkbox.checked) {
-                this.state.filters.locationTypes.push(locationTypeValues[index]);
-            }
-            // Listen for user toggles
-            checkbox.addEventListener('change', () => {
-                const value = locationTypeValues[index];
+        locationTypeIds.forEach((id, index) => {
+            const checkbox = document.getElementById(id);
+            if (checkbox) {
+                // If the box is already checked on page load, add it to the array
                 if (checkbox.checked) {
-                    this.state.filters.locationTypes.push(value);
-                } else {
-                    this.state.filters.locationTypes =
-                        this.state.filters.locationTypes.filter(type => type !== value);
+                    this.state.filters.locationTypes.push(locationTypeValues[index]);
                 }
-            });
-        }
-    });
-
-    // 3. Work Type checkboxes
-    const workTypeIds = ['etftcb', 'etptcb', 'etcocb', 'etsecb', 'etlecb', 'etnscb'];
-    const workTypeValues = [
-        'Full-Time',
-        'Part-Time',
-        'Contract',
-        'Seasonal',
-        'Learning Experience Opportunity',
-        'Not Specified'
-    ];
-
-    workTypeIds.forEach((id, index) => {
-        const checkbox = document.getElementById(id);
-        if (checkbox) {
-            // If the box is already checked on page load, add it
-            if (checkbox.checked) {
-                this.state.filters.workTypes.push(workTypeValues[index]);
-            }
-            // Listen for changes
-            checkbox.addEventListener('change', () => {
-                const value = workTypeValues[index];
-                if (checkbox.checked) {
-                    this.state.filters.workTypes.push(value);
-                } else {
-                    this.state.filters.workTypes =
-                        this.state.filters.workTypes.filter(type => type !== value);
-                }
-            });
-        }
-    });
-
-    // 4. Title input
-    const titleInput = document.getElementById('search_input');
-    // (Location input is handled by your typeahead setup, so we skip it here.)
-
-    // 5. Radius select
-    const radiusSelect = document.getElementById('radius_select');
-    if (radiusSelect) {
-        radiusSelect.addEventListener('change', (e) => {
-            this.state.filters.radiusMiles = parseInt(e.target.value, 10);
-        });
-    }
-
-    // 6. Search button
-    const searchButton = document.getElementById('search_button');
-    if (searchButton) {
-        searchButton.addEventListener('click', () => {
-            if (titleInput) {
-                this.state.filters.title = titleInput.value.trim();
-            }
-            console.log('Search clicked with filters:', this.state.filters);
-            this.refreshJobs();
-
-            if (!this._infiniteScrollSet) {
-                this.setupInfiniteScroll();
-                this._infiniteScrollSet = true;
+                // Listen for user toggles
+                checkbox.addEventListener('change', () => {
+                    const value = locationTypeValues[index];
+                    if (checkbox.checked) {
+                        this.state.filters.locationTypes.push(value);
+                    } else {
+                        this.state.filters.locationTypes =
+                            this.state.filters.locationTypes.filter(type => type !== value);
+                    }
+                });
             }
         });
-    }
-},
+
+        // 3. Work Type checkboxes
+        const workTypeIds = ['etftcb', 'etptcb', 'etcocb', 'etsecb', 'etlecb', 'etnscb'];
+        const workTypeValues = [
+            'Full-Time',
+            'Part-Time',
+            'Contract',
+            'Seasonal',
+            'Learning Experience Opportunity',
+            'Not Specified'
+        ];
+
+        workTypeIds.forEach((id, index) => {
+            const checkbox = document.getElementById(id);
+            if (checkbox) {
+                // If the box is already checked on page load, add it
+                if (checkbox.checked) {
+                    this.state.filters.workTypes.push(workTypeValues[index]);
+                }
+                // Listen for changes
+                checkbox.addEventListener('change', () => {
+                    const value = workTypeValues[index];
+                    if (checkbox.checked) {
+                        this.state.filters.workTypes.push(value);
+                    } else {
+                        this.state.filters.workTypes =
+                            this.state.filters.workTypes.filter(type => type !== value);
+                    }
+                });
+            }
+        });
+
+        // 4. Title input
+        const titleInput = document.getElementById('search_input');
+        // (Location input is handled by your typeahead setup, so we skip it here.)
+
+        // 5. Radius select
+        const radiusSelect = document.getElementById('radius_select');
+        if (radiusSelect) {
+            radiusSelect.addEventListener('change', (e) => {
+                this.state.filters.radiusMiles = parseInt(e.target.value, 10);
+            });
+        }
+
+        // 6. Search button
+        const searchButton = document.getElementById('search_button');
+        if (searchButton) {
+            // Modify the search button to handle both search and state transition
+            searchButton.addEventListener('click', () => {
+                // Update the title filter
+                if (titleInput) {
+                    this.state.filters.title = titleInput.value.trim();
+                }
+                
+                // Log and refresh jobs
+                console.log('Search clicked with filters:', this.state.filters);
+                this.refreshJobs();
+
+                if (!this._infiniteScrollSet) {
+                    this.setupInfiniteScroll();
+                    this._infiniteScrollSet = true;
+                }
+                
+                // Transition to State B after search initiated
+                this.transitionToStateB();
+            });
+        }
+    },
 
     /*******************************************************
      * Job Fetching and Filtering
@@ -237,7 +441,7 @@ setupFilters() {
         const selectedLocationTypes = this.state.filters.locationTypes || [];
         const selectedWorkTypes = this.state.filters.workTypes || [];
     
-        // Determine the final “filter arrays” based on all/none/partial logic
+        // Determine the final "filter arrays" based on all/none/partial logic
         let locationTypeFilter;
         if (selectedLocationTypes.length === 0) {
             // None selected => no results
@@ -408,7 +612,7 @@ setupFilters() {
                 });
             }
     
-            // If includeUndefined = false, remove jobs that don’t have compensation data
+            // If includeUndefined = false, remove jobs that don't have compensation data
             if (!includeUndefined) {
                 console.log('Filtering out jobs with undefined compensation');
                 filteredData = filteredData.filter(job => {
@@ -444,7 +648,7 @@ setupFilters() {
                 jobsContainer.appendChild(jobElement);
             }
     
-            // We’ve rendered all possible results, so no more to load
+            // We've rendered all possible results, so no more to load
             this.state.hasMore = false;
     
         } catch (err) {
@@ -702,6 +906,11 @@ setupFilters() {
                     .classList.remove('show-detail');
             });
         }
+        
+        // Initialize state management
+        this.ensureFilterViewStructure();
+        this.setupStateTransitions();
+        this.transitionToStateA(); // Start in State A
     }
 };
 
