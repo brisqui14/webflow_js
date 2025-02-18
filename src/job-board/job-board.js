@@ -921,12 +921,6 @@ updateFilterViewDisplay() {
             return;
         }
 
-        // Add results counter
-        const resultsCounter = document.createElement('div');
-        resultsCounter.id = 'results-counter';
-        resultsCounter.className = 'results-counter';
-        jobsContainer.insertBefore(resultsCounter, jobsContainer.firstChild);
-
         // Set up location typeahead
         this.setupLocationTypeahead();
 
